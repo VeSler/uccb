@@ -49,7 +49,7 @@ module.exports = class Uccb {
         if (!this.checkBaudRate(baudRate)){
             throw new Error(`Incorrect value baudRate: ${this.baudRate}`)
         };
-        this.portName = (findDevice())?.path;
+        this.portName = (this.findDevice())?.path;
         this.connect();
 
     }
