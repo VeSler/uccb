@@ -21,11 +21,9 @@
  * маски ...
  */
 
-const { rejects } = require('assert');
-const { resolve } = require('path');
 const { SerialPort } = require('serialport');
 
-class Uccb {
+module.exports = class Uccb {
 
     portName;   // назва порту UART
     sp;         // 
