@@ -97,7 +97,7 @@ module.exports = class Uccb {
         if (this.isConnected || this.isOpen) throw new Error(`Device already connected or open.`)
         if (!this.status === 'disconnected') throw new Error(`Device already connected or open.`)
 
-        if(!this.portName) throw new Error('Не найденно устройство!') ;
+        if(!this.portName) throw new Error(`Не найдено устройство! portName: ${JSON.stringify(this.portName)}`) ;
 
         this.sp = new SerialPort({ path: this.portName, baudRate: 115200, autoOpen: true }, (e) => {
             if(e) {
