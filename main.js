@@ -45,7 +45,7 @@ module.exports = class Uccb extends EventEmitter {
 
     constructor(baudRate) {
         //baudRate: '', '100k', '125k', '250k', '500k', '800k', '1M'
-        
+        super();
         this.baudRate = baudRate || '125k';
         if (!this.checkBaudRate(baudRate)){
             throw new Error(`Incorrect value baudRate: ${this.baudRate}`)
@@ -58,6 +58,7 @@ module.exports = class Uccb extends EventEmitter {
         .this(() => {
             this.status = 'connected';
             this.isConnected = true;
+            this.emit('connected');
             this.On();
         })
         .catch(e =>{
@@ -118,7 +119,7 @@ module.exports = class Uccb extends EventEmitter {
 
             this.sp = new SerialPort({ path: this.portName, baudRate: 115200, autoOpen: true }, (e) => {
                 if(e) {
-                     reject(new Error(e.message));
+                    reject(new Error(e.message));
                 }else{
                     resolve();
                 }
@@ -153,7 +154,7 @@ module.exports = class Uccb extends EventEmitter {
         await this.write(`${cmd}\r${l}\r`);
         this.status = 'open';
         this.isOpen = true;
-        this.emit('opened');
+        this.emit('open');
     }
 
     async listen(){
