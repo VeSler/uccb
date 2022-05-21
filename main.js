@@ -49,9 +49,19 @@ module.exports = class Uccb {
         if (!this.checkBaudRate(baudRate)){
             throw new Error(`Incorrect value baudRate: ${this.baudRate}`)
         };
-        this.portName = (this.findDevice())?.path;
-        this.connect();
-
+        this.findDevice()
+        .this(path => {
+            this.portName = path;
+            return this.connect();
+        })
+        .this(() => {
+            this.status = 'connected';
+            this.isConnected = true;
+            this.On();
+        })
+        .catch(e =>{
+            console.err(e.message);
+        })
     }
 
     checkBaudRate(br){
@@ -77,37 +87,45 @@ module.exports = class Uccb {
     }
 
     findDevice() {
-        this.listDevices()
-        .then(
-            res => {
-                res.forEach(dev => {
-                    if(dev?.pnpId.includes("CAN_USB_ConverterBasic")) {
-                        return dev;
-                    }
-                })
-                return;
-            },
-            err => {
-                throw new Error(`Can't find UCCS devices in this system`)
-            }
-        )
+        return new Promise(function(resolve, reject){
+            this.listDevices()
+            .then(
+                res => {
+                    res.forEach(dev => {
+                        if(dev?.pnpId.includes("CAN_USB_ConverterBasic")) {
+                            resolve(dev);
+                        }
+                    })
+                    reject(new Error(`Don't found Supports devices`))
+                },
+                err => {
+                    reject(err)
+                }
+            ).catch(
+                err =>{
+                    reject(err)
+                }
+            )
+        })
     }
 
     async connect(){
-        if (this.isConnected || this.isOpen) throw new Error(`Device already connected or open.`)
-        if (!this.status === 'disconnected') throw new Error(`Device already connected or open.`)
+        return new Promise(function(resolve, reject){
+            if (this.isConnected || this.isOpen) reject(new Error(`Device already connected or open. isConnected: ${this.isConnected}, isOpen: ${this.isOpen}`));
+            if (!this.status === 'disconnected') reject(new Error(`Device already connected or open. Status: ${this.status}`));
+            if(!this.portName) reject(new Error(`Не найдено устройство! portName: ${JSON.stringify(this.portName)}`));
 
-        if(!this.portName) throw new Error(`Не найдено устройство! portName: ${JSON.stringify(this.portName)}`) ;
+            this.sp = new SerialPort({ path: this.portName, baudRate: 115200, autoOpen: true }, (e) => {
+                if(e) {
+                     reject(new Error(e.message));
+                }else{
+                    resolve();
+                }
+            });        
+    
+        })
 
-        this.sp = new SerialPort({ path: this.portName, baudRate: 115200, autoOpen: true }, (e) => {
-            if(e) {
-                 throw new Error(e.message);
-            }else{
-                this.status = 'connected';
-                this.isConnected = true;
-                this.On();
-            }
-        });        
+
     }
 
     async disconnect(){
