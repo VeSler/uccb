@@ -73,21 +73,19 @@ module.exports = class Uccb extends EventEmitter {
         return this.baudRate.includes(br);
     }
 
-    listDevices() {
-        return new Promise(function(resolve, reject){
-            SerialPort.list()
-            .then(
-                res => {
-                    resolve(res)
-                },
-                err => {
-                    reject(err)
-                }
-            )
-            .catch( err => {
-                reject(err)
-            });
-        })
+    listDevices(){
+        SerialPort.list()
+        .then(
+            res => {
+                return(res)
+            },
+            err => {
+                throw new Error(err.message)
+            }
+        )
+        .catch( err => {
+            throw new Error(err.message)
+        });
     }
 
     findDevice() {
