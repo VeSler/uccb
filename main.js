@@ -21,6 +21,7 @@
  * маски ...
  */
 
+const { rejects } = require('assert');
 const { resolve } = require('path');
 const { SerialPort } = require('serialport');
 
@@ -50,8 +51,7 @@ class Uccb {
         if (!this.checkBaudRate(baudRate)){
             throw new Error(`Incorrect value baudRate: ${this.baudRate}`)
         };
-        let devices = await this.listDevices();
-        this.portName = (findDevice(devices))?.path;
+        this.portName = (findDevice())?.path;
         this.connect();
 
     }
@@ -60,17 +60,39 @@ class Uccb {
         return this.baudRate.includes(br);
     }
 
-    async listDevices() {
-        return await SerialPort.list();
+    listDevices() {
+        return new Promise(function(resolve, reject){
+            SerialPort.list()
+            .then(
+                res => {
+                    resolve(res)
+                },
+                err => {
+                    reject(err)
+                }
+            )
+            .catch( err => {
+                reject(err)
+            });
+        })
+
     }
 
-    findDevice(ld) {
-        ld.forEach(dev => {
-            if(dev?.pnpId.includes("CAN_USB_ConverterBasic")) {
-                return dev;
+    findDevice() {
+        this.listDevices()
+        .then(
+            res => {
+                res.forEach(dev => {
+                    if(dev?.pnpId.includes("CAN_USB_ConverterBasic")) {
+                        return dev;
+                    }
+                })
+                return;
+            },
+            err => {
+                throw new Error(`Can't find UCCS devices in this system`)
             }
-        })
-        return;
+        )
     }
 
     async connect(){
