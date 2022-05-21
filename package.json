@@ -22,7 +22,9 @@
         "serialport": "^10.2.0"
     },
     "main": "main.js",
-    "scripts": {},
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
     "bugs": {
         "url": "https://github.com/VeSler/uccb/issues"
     },
