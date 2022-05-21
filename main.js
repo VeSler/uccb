@@ -50,6 +50,9 @@ module.exports = class Uccb extends EventEmitter {
         if (!this.checkBaudRate(baudRate)){
             throw new Error(`Incorrect value baudRate: ${this.baudRate}`)
         };
+    }
+
+    run(){
         this.findDevice()
         .this(path => {
             this.portName = path;
@@ -85,7 +88,6 @@ module.exports = class Uccb extends EventEmitter {
                 reject(err)
             });
         })
-
     }
 
     findDevice() {
