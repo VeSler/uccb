@@ -88,6 +88,15 @@ module.exports = class Uccb extends EventEmitter {
         });
     }
 
+    listDeviceAsync(callback){
+        try{
+            let result = this.listDevices();
+            callback(null, result);
+        }catch{
+            callback(new Error('error'), null)
+        }
+    }
+
     findDevice() {
         return new Promise(function(resolve, reject){
             this.listDevices()
