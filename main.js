@@ -22,8 +22,9 @@
  */
 
 const { SerialPort } = require('serialport');
+const EventEmitter = require('node:events');
 
-module.exports = class Uccb {
+module.exports = class Uccb extends EventEmitter {
 
     portName;   // назва порту UART
     sp;         // 
@@ -122,10 +123,7 @@ module.exports = class Uccb {
                     resolve();
                 }
             });        
-    
         })
-
-
     }
 
     async disconnect(){
@@ -134,7 +132,8 @@ module.exports = class Uccb {
         try {
             this.sp.close();
             this.status = 'disconnected';
-            this.isConnected = false;            
+            this.isConnected = false; 
+            this.emit('disconnected');           
         } catch (e) {
             throw new Error(e.message);
         }
@@ -154,6 +153,7 @@ module.exports = class Uccb {
         await this.write(`${cmd}\r${l}\r`);
         this.status = 'open';
         this.isOpen = true;
+        this.emit('opened');
     }
 
     async listen(){
@@ -166,6 +166,7 @@ module.exports = class Uccb {
         if (!this.status === 'open') throw new Error(`Device is not opened. `)
         await this.write('C\r');
         this.isOpen = false;
+        this.emit('close');
     }
 
     async write(str){
