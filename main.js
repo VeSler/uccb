@@ -32,6 +32,7 @@ module.exports = class Uccb extends EventEmitter {
     isConnected = false;
     isOpen = false;
     baudRate;
+    ld;
 
     baudRates = ['100k', '125k', '250k', '500k', '800k', '1M'];
     cmds = [
@@ -77,6 +78,7 @@ module.exports = class Uccb extends EventEmitter {
         SerialPort.list()
         .then(
             res => {
+                this.ld = res;
                 return(res)
             },
             err => {
@@ -89,12 +91,14 @@ module.exports = class Uccb extends EventEmitter {
     }
 
     listDeviceAsync(callback){
-        try{
-            let result = this.listDevices();
-            callback(null, result);
-        }catch{
-            callback(new Error('error'), null)
-        }
+            SerialPort.list()
+            .then(res =>{
+                this.ld = res
+                callback(null, res);
+            })
+            .catch(err => {
+                callback(err)
+            })
     }
 
     findDevice() {
