@@ -114,37 +114,21 @@ module.exports = class Uccb extends EventEmitter {
         })
     }
 
-    findDeviceAsync(callback){
-        let callback_ = (typeof(callback) == 'function' ? callback : null);
-
-    }
-
-    findDevice(callback) {
-        this.listDevices((err, res) => {
-            if (err){
-                callback(new Error(`Don't found Supports devices`));
-            }else{
-                res.forEach(dev => {
-                    if(dev?.pnpId.includes("CAN_USB_ConverterBasic")) {
-                        callback(null, dev.path);
-                    }
-                })
-                callback(new Error(`Don't found Supports devices`));
-            }
-        })
-    }
-
     async connect(){
-        return new Promise(function(resolve, reject){
+        return new Promise((resolve, reject) => {
             if (this.isConnected || this.isOpen) reject(new Error(`Device already connected or open. isConnected: ${this.isConnected}, isOpen: ${this.isOpen}`));
             if (!this.status === 'disconnected') reject(new Error(`Device already connected or open. Status: ${this.status}`));
+
+            this.portName = await this.getPath();
             if(!this.portName) reject(new Error(`Не найдено устройство! portName: ${JSON.stringify(this.portName)}`));
 
             this.sp = new SerialPort({ path: this.portName, baudRate: 115200, autoOpen: true }, (e) => {
                 if(e) {
                     reject(new Error(e.message));
                 }else{
-                    this.emit('connected')
+                    this.status = 'connected';
+                    this.isConnected = true;
+                    this.emit('connected');
                     resolve();
                 }
             });        
