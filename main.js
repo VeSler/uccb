@@ -96,6 +96,23 @@ module.exports = class Uccb extends EventEmitter {
         })
     }
 
+    async getPath(){
+        return new Promise((resolve, reject) => {
+            this.getUARTListAsync()
+            .then(res => {
+                res.forEach(dev => {
+                    if(dev?.pnpId.includes("CAN_USB_ConverterBasic")) {
+                        resolve(dev?.path);
+                    }
+                    reject(new Error('Path not found'))
+                }),
+                err => {
+                    reject(err);
+                }
+            })
+            .catch(err => reject(err))
+        })
+    }
 
     findDeviceAsync(callback){
         let callback_ = (typeof(callback) == 'function' ? callback : null);
