@@ -24,6 +24,7 @@
 const { SerialPort } = require('serialport');
 const EventEmitter = require('node:events');
 const { resolve } = require('node:path');
+const { ReadlineParser } = require('@serialport/parser-readline');
 
 module.exports = class Uccb extends EventEmitter {
 
@@ -58,24 +59,7 @@ module.exports = class Uccb extends EventEmitter {
         if (this.autoOpen){}
     }
 
-    run(){
-        this.findDevice((err,path) => {
-            if (err){
-
-            }else{
-                this.portName = path;
-                //TODO: connect нужно переделать на использование callback
-                return this.connect();            
-            }
-        })
-/*        {
-            this.status = 'connected';
-            this.isConnected = true;
-            this.emit('connected');
-            this.On();
-        }*/
-    }
-
+/*
     getUARTList(callback){
         let callback_ = (typeof(callback) == 'function' ? callback : null);
         SerialPort.list()
@@ -87,8 +71,8 @@ module.exports = class Uccb extends EventEmitter {
             callback_(err)
         })
     }
-
-    async getUARTListAsync(){
+*/
+    async getUARTList(){
         return new Promise((resolve,reject) => {
             SerialPort.list()
             .then(res => resolve(res), err => reject(err))
@@ -98,7 +82,7 @@ module.exports = class Uccb extends EventEmitter {
 
     async getPath(){
         return new Promise((resolve, reject) => {
-            this.getUARTListAsync()
+            this.getUARTList()
             .then(res => {
                 res.forEach(dev => {
                     if(dev?.pnpId.includes("CAN_USB_ConverterBasic")) {
@@ -132,13 +116,20 @@ module.exports = class Uccb extends EventEmitter {
                         this.status = 'connected';
                         this.isConnected = true;
                         this.emit('connected');
+                        const parser = port.pipe(new ReadlineParser({ delimiter: '\r' }))
+                        parser.on('data', this.onData(data));
                         resolve();
                     }
-                });        
+                }); 
+
             })
         })
     }
 
+    onData(data){
+        this.emit('data', data);
+    }
+    
     async disconnect(){
         //TODO: обработка this.isConnected и this.isOpen
         if (!this.status === 'connected') throw new Error(`Device is not in connected mode: ${this.status}`);
