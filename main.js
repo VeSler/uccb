@@ -127,7 +127,7 @@ module.exports = class Uccb extends EventEmitter {
 
                 this.sp = new SerialPort({ path: this.portName, baudRate: 115200, autoOpen: true }, (e) => {
                     if(e) {
-                        reject(new Error(e.message));
+                        reject(e);
                     }else{
                         this.status = 'connected';
                         this.isConnected = true;
