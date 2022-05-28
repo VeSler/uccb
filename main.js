@@ -117,7 +117,7 @@ module.exports = class Uccb extends EventEmitter {
                         this.isConnected = true;
                         this.emit('connected');
                         const parser = port.pipe(new ReadlineParser({ delimiter: '\r' }))
-                        parser.on('data', this.onData(data));
+                        parser.on('data', (data) => {this.emit('data', data)});
                         resolve();
                     }
                 }); 
