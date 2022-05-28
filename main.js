@@ -23,11 +23,13 @@
 
 const { SerialPort } = require('serialport');
 const EventEmitter = require('node:events');
+const { resolve } = require('node:path');
 
 module.exports = class Uccb extends EventEmitter {
 
     portName;   // назва порту UART
-    sp;         // 
+    autoOpen;   //
+    sp;         // SerialPort 
     status = 'disconnected'; // disconnected, connected, open, listen 
     isConnected = false;
     isOpen = false;
@@ -44,83 +46,74 @@ module.exports = class Uccb extends EventEmitter {
         {cmd: 'S8', br: '1M'},
     ]
 
-    constructor(baudRate) {
+    constructor(baudRate, autoOpen, mode) {
         //baudRate: '', '100k', '125k', '250k', '500k', '800k', '1M'
         super();
         this.baudRate = baudRate || '125k';
+        this.autoOpen = autoOpen || false;
+        this.mode = mode || 'Open';
         if (!this.checkBaudRate(baudRate)){
             throw new Error(`Incorrect value baudRate: ${this.baudRate}`)
         };
+        if (this.autoOpen){}
     }
 
     run(){
-        this.findDevice()
-        .this(path => {
-            this.portName = path;
-            return this.connect();
+        this.findDevice((err,path) => {
+            if (err){
+
+            }else{
+                this.portName = path;
+                //TODO: connect нужно переделать на использование callback
+                return this.connect();            
+            }
         })
-        .this(() => {
+/*        {
             this.status = 'connected';
             this.isConnected = true;
             this.emit('connected');
             this.On();
-        })
-        .catch(e =>{
-            console.err(e.message);
-        })
+        }*/
     }
 
-    checkBaudRate(br){
-        return this.baudRate.includes(br);
-    }
-
-    listDevices(){
+    getUARTList(callback){
+        let callback_ = (typeof(callback) == 'function' ? callback : null);
         SerialPort.list()
-        .then(
-            res => {
-                this.ld = res;
-                return(res)
-            },
-            err => {
-                throw new Error(err.message)
-            }
-        )
-        .catch( err => {
-            throw new Error(err.message)
-        });
+        .then(res =>{
+            this.ld = res
+            callback_(null, res);
+        })
+        .catch(err => {
+            callback_(err)
+        })
     }
 
-    listDeviceAsync(callback){
+    async getUARTListAsync(){
+        return new Promise((resolve,reject) => {
             SerialPort.list()
-            .then(res =>{
-                this.ld = res
-                callback(null, res);
-            })
-            .catch(err => {
-                callback(err)
-            })
+            .then(res => resolve(res), err => reject(err))
+            .catch(err => reject(err))
+        })
     }
 
-    findDevice() {
-        return new Promise(function(resolve, reject){
-            this.listDevices()
-            .then(
-                res => {
-                    res.forEach(dev => {
-                        if(dev?.pnpId.includes("CAN_USB_ConverterBasic")) {
-                            resolve(dev);
-                        }
-                    })
-                    reject(new Error(`Don't found Supports devices`))
-                },
-                err => {
-                    reject(err)
-                }
-            ).catch(
-                err =>{
-                    reject(err)
-                }
-            )
+
+    findDeviceAsync(callback){
+        let callback_ = (typeof(callback) == 'function' ? callback : null);
+
+    }
+
+    findDevice(callback) {
+        this.listDevices((err, res) => {
+            if (err){
+                callback(new Error(`Don't found Supports devices`));
+            }else{
+                res.forEach(dev => {
+                    if(dev?.pnpId.includes("CAN_USB_ConverterBasic")) {
+                        callback(null, dev.path);
+                    }
+                })
+                callback(new Error(`Don't found Supports devices`));
+            }
         })
     }
 
@@ -134,6 +127,7 @@ module.exports = class Uccb extends EventEmitter {
                 if(e) {
                     reject(new Error(e.message));
                 }else{
+                    this.emit('connected')
                     resolve();
                 }
             });        
@@ -214,4 +208,8 @@ module.exports = class Uccb extends EventEmitter {
     onError(){
 
     };
+
+    checkBaudRate(br){
+        return this.baudRate.includes(br);
+    }
 }
