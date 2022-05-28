@@ -119,19 +119,23 @@ module.exports = class Uccb extends EventEmitter {
             if (this.isConnected || this.isOpen) reject(new Error(`Device already connected or open. isConnected: ${this.isConnected}, isOpen: ${this.isOpen}`));
             if (!this.status === 'disconnected') reject(new Error(`Device already connected or open. Status: ${this.status}`));
 
-            this.portName = await this.getPath();
-            if(!this.portName) reject(new Error(`Не найдено устройство! portName: ${JSON.stringify(this.portName)}`));
+            this.getPath()
+            .then(path => {
+                this.portName = path;
 
-            this.sp = new SerialPort({ path: this.portName, baudRate: 115200, autoOpen: true }, (e) => {
-                if(e) {
-                    reject(new Error(e.message));
-                }else{
-                    this.status = 'connected';
-                    this.isConnected = true;
-                    this.emit('connected');
-                    resolve();
-                }
-            });        
+                if(!this.portName) reject(new Error(`Не найдено устройство! portName: ${JSON.stringify(this.portName)}`));
+
+                this.sp = new SerialPort({ path: this.portName, baudRate: 115200, autoOpen: true }, (e) => {
+                    if(e) {
+                        reject(new Error(e.message));
+                    }else{
+                        this.status = 'connected';
+                        this.isConnected = true;
+                        this.emit('connected');
+                        resolve();
+                    }
+                });        
+            })
         })
     }
 
