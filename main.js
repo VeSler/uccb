@@ -31,6 +31,7 @@ module.exports = class Uccb extends EventEmitter {
     portName;   // назва порту UART
     autoOpen;   //
     sp;         // SerialPort 
+
     status = 'disconnected'; // disconnected, connected, open, listen 
     isConnected = false;
     isOpen = false;
@@ -116,12 +117,13 @@ module.exports = class Uccb extends EventEmitter {
                         this.status = 'connected';
                         this.isConnected = true;
                         this.emit('connected');
-                        const parser = port.pipe(new ReadlineParser({ delimiter: '\r' }))
-                        parser.on('data', (data) => {this.emit('data', data)});
-                        resolve();
+
+//                        this.sp.on('data', (data) => {this.emit('data',data)});
                     }
                 }); 
-
+                const parser = port.pipe(new ReadlineParser({ delimiter: '\r' }))
+                parser.on('data', (data) => {this.emit('data', data)});
+                resolve();
             })
         })
     }
