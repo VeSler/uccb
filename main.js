@@ -129,7 +129,7 @@ module.exports = class Uccb extends EventEmitter {
     onData(data){
         this.emit('data', data);
     }
-    
+
     async disconnect(){
         //TODO: обработка this.isConnected и this.isOpen
         if (!this.status === 'connected') throw new Error(`Device is not in connected mode: ${this.status}`);
@@ -184,6 +184,7 @@ module.exports = class Uccb extends EventEmitter {
         });
     }
 
+    /*
     //TODO: как-то выбросить данные наружу ...
     On(){
         this.sp.on('open', this.onOpen.bind(this));
@@ -204,7 +205,7 @@ module.exports = class Uccb extends EventEmitter {
     onError(){
 
     };
-
+*/
     checkBaudRate(br){
         return this.baudRate.includes(br);
     }
