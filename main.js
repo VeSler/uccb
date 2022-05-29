@@ -128,7 +128,7 @@ module.exports = class Uccb extends EventEmitter {
                 }); 
                 this.parser = this.sp.pipe(new ReadlineParser({ delimiter: '\r' }))
                 this.parser.on('data', (data) => {this.onData(data)});
-                resolve();
+                resolve('Port connected');
             })
         })
     }
@@ -159,7 +159,7 @@ module.exports = class Uccb extends EventEmitter {
 
     async open(l){
         //TODO: обработка this.isConnected и this.isOpen
-        
+
         if (!this.status === 'connected') throw new Error(`Can't open device. Status: ${this.status}`);
 
         l = l || 'O';
@@ -167,19 +167,22 @@ module.exports = class Uccb extends EventEmitter {
             if (val.br === this.baudRate) return val.cmd;
         })
         cmd = cmd || 'S4';
-        this.writeCMD(`${cmd}\r${l}\r`)
-        .then(
-            () => {
-                this.status = 'open';
-                this.isOpen = true;
-                this.emit('open');
-                resolve(`Command: ${cmd}\r${l}\r send successfully`)    
-            },
-            (e) => {
-                reject(e)
-            })
-        .catch(e => {
-            reject(e);
+
+        return new Promise((resolve, reject) => {
+            this.writeCMD(`${cmd}\r${l}\r`)
+            .then(
+                () => {
+                    this.status = 'open';
+                    this.isOpen = true;
+                    this.emit('open');
+                    resolve(`Command: ${cmd}\r${l}\r send successfully`)    
+                },
+                (e) => {
+                    reject(e)
+                })
+            .catch(e => {
+                reject(e);
+            })                
         })
     }
 
