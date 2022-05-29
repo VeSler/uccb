@@ -119,7 +119,7 @@ module.exports = class Uccb extends EventEmitter {
                         this.emit('connected');
                     }
                 }); 
-                this.parser = sp.pipe(new ReadlineParser({ delimiter: '\r' }))
+                this.parser = this.sp.pipe(new ReadlineParser({ delimiter: '\r' }))
                 this.parser.on('data', (data) => {this.emit('data', data)});
                 resolve();
             })
