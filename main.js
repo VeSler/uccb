@@ -173,7 +173,7 @@ module.exports = class Uccb extends EventEmitter {
                 this.status = 'open';
                 this.isOpen = true;
                 this.emit('open');
-                resolve()    
+                resolve(`Command: ${cmd}\r${l}\r send successfully`)    
             },
             (e) => {
                 reject(e)
