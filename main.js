@@ -72,25 +72,12 @@ module.exports = class Uccb extends EventEmitter {
                 this.isPresentDevice = true;
             },
             err => {
-                reject(err);
+                throw (err);
             }
         )
         if (this.autoOpen){}
     }
 
-/*
-    getUARTList(callback){
-        let callback_ = (typeof(callback) == 'function' ? callback : null);
-        SerialPort.list()
-        .then(res =>{
-            this.ld = res
-            callback_(null, res);
-        })
-        .catch(err => {
-            callback_(err)
-        })
-    }
-*/
     async getUARTList(){
         return new Promise((resolve,reject) => {
             SerialPort.list()
@@ -107,7 +94,7 @@ module.exports = class Uccb extends EventEmitter {
                     if(dev?.pnpId.includes("CAN_USB_ConverterBasic")) {
                         resolve(dev?.path);
                     }
-                    reject(new Error('Path not found'))
+                    reject(new Error(`Path not found. List devices: ${JSON.stringify(res)}`))
                 }),
                 err => {
                     reject(err);
