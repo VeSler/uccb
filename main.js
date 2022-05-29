@@ -89,17 +89,19 @@ module.exports = class Uccb extends EventEmitter {
     async getPath(){
         return new Promise((resolve, reject) => {
             this.getUARTList()
-            .then(res => {
-                res.forEach(dev => {
-                    if(dev?.pnpId.includes("CAN_USB_ConverterBasic")) {
-                        resolve(dev?.path);
-                    }
+            .then(
+                res => {
+                    res.forEach(dev => {
+                        if(dev?.pnpId.includes("CAN_USB_ConverterBasic")) {
+                            resolve(dev?.path);
+                        }
+                    })
                     reject(new Error(`Path not found. List devices: ${JSON.stringify(res)}`))
-                }),
+                },
                 err => {
                     reject(err);
                 }
-            })
+            )
             .catch(err => reject(err))
         })
     }
