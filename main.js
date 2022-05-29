@@ -28,6 +28,7 @@
 const { SerialPort } = require('serialport');
 const EventEmitter = require('node:events');
 const { ReadlineParser } = require('@serialport/parser-readline');
+const { resolve } = require('node:path');
 
 module.exports = class Uccb extends EventEmitter {
 
@@ -158,7 +159,6 @@ module.exports = class Uccb extends EventEmitter {
 
     async open(l){
         //TODO: обработка this.isConnected и this.isOpen
-        //TODO: try ... catch
         
         if (!this.status === 'connected') throw new Error(`Can't open device. Status: ${this.status}`);
 
@@ -167,10 +167,20 @@ module.exports = class Uccb extends EventEmitter {
             if (val.br === this.baudRate) return val.cmd;
         })
         cmd = cmd || 'S4';
-        await this.write(`${cmd}\r${l}\r`);
-        this.status = 'open';
-        this.isOpen = true;
-        this.emit('open');
+        this.writeCMD(`${cmd}\r${l}\r`)
+        .then(
+            () => {
+                this.status = 'open';
+                this.isOpen = true;
+                this.emit('open');
+                resolve()    
+            },
+            (e) => {
+                reject(e)
+            })
+        .catch(e => {
+            reject(e);
+        })
     }
 
     async listen(){
@@ -181,9 +191,15 @@ module.exports = class Uccb extends EventEmitter {
         //TODO: обработка this.isConnected и this.isOpen
         //TODO: try ... catch
         if (!this.status === 'open') throw new Error(`Device is not opened. `)
-        await this.write('C\r');
-        this.isOpen = false;
-        this.emit('close');
+        this.write('C\r')
+        .then(
+            () => {
+                this.isOpen = false;
+                this.emit('close');
+                resolve()
+            },
+            () => reject()
+        )
     }
 
     async writeCMD(str){
