@@ -133,6 +133,7 @@ module.exports = class Uccb extends EventEmitter {
     }
 
     onData(_data){
+        let data;
         if(this.sendCMD === undefined){
             data = _data;
         }else{
