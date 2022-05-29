@@ -43,6 +43,7 @@ module.exports = class Uccb extends EventEmitter {
     status = 'disconnected'; // disconnected, connected, open, listen 
     isConnected = false;
     isOpen = false;
+    isPresentDevice = false;
     sendCMD;
 
     baudRates = ['100k', '125k', '250k', '500k', '800k', '1M'];
@@ -64,6 +65,16 @@ module.exports = class Uccb extends EventEmitter {
         if (!this.checkBaudRate(baudRate)){
             throw new Error(`Incorrect value baudRate: ${this.baudRate}`)
         };
+        this.getPath()
+        .then(
+            path => {
+                this.portName = path;
+                this.isPresentDevice = true;
+            },
+            err => {
+                reject(err);
+            }
+        )
         if (this.autoOpen){}
     }
 
@@ -106,33 +117,6 @@ module.exports = class Uccb extends EventEmitter {
         })
     }
 
-    async connect(){
-        return new Promise((resolve, reject) => {
-            if (this.isConnected || this.isOpen) reject(new Error(`Device already connected or open. isConnected: ${this.isConnected}, isOpen: ${this.isOpen}`));
-            if (!this.status === 'disconnected') reject(new Error(`Device already connected or open. Status: ${this.status}`));
-
-            this.getPath()
-            .then(path => {
-                this.portName = path;
-
-                if(!this.portName) reject(new Error(`Не найдено устройство! portName: ${JSON.stringify(this.portName)}`));
-
-                this.sp = new SerialPort({ path: this.portName, baudRate: 115200, autoOpen: true }, (e) => {
-                    if(e) {
-                        reject(e);
-                    }else{
-                        this.status = 'connected';
-                        this.isConnected = true;
-                        this.emit('connected');
-                    }
-                }); 
-                this.parser = this.sp.pipe(new ReadlineParser({ delimiter: '\r' }))
-                this.parser.on('data', (data) => {this.onData(data)});
-                resolve('Port connected');
-            })
-        })
-    }
-
     onData(_data){
         let data;
         if(this.sendCMD === undefined){
@@ -144,17 +128,39 @@ module.exports = class Uccb extends EventEmitter {
         this.emit('data', data);
     }
 
+    async connect(){
+        return new Promise((resolve, reject) => {
+            if (!this.isPresentDevice) reject(`Port not found`);
+            this.sp = new SerialPort({ path: this.portName, baudRate: 115200, autoOpen: true }, (e) => {
+                if(e) {
+                    reject(e);
+                }else{
+                    this.isConnected = true;
+                    this.emit('connected');
+                }
+            }); 
+            this.parser = this.sp.pipe(new ReadlineParser({ delimiter: '\r' }))
+            this.parser.on('data', (data) => {this.onData(data)});
+            resolve('Port connected');
+        })
+    }
+
     async disconnect(){
-        //TODO: обработка this.isConnected и this.isOpen
-        if (!this.status === 'connected') throw new Error(`Device is not in connected mode: ${this.status}`);
-        try {
-            this.sp.close();
-            this.status = 'disconnected';
-            this.isConnected = false; 
-            this.emit('disconnected');           
-        } catch (e) {
-            throw new Error(e.message);
-        }
+        return new Promise((resolve, reject) => {
+            if (!this.isConnected) reject(`Device is disconnected already`);
+            if (this.isOpen) {
+                //TODO: this.close();
+            }
+            this.sp.close((e) => {
+                if (e) {
+                    reject(`Device is disconnected already`)
+                }else{
+                    this.isConnected = false; 
+                    this.emit('disconnected');
+                    resolve('Port disconnected successfully')                  
+                }
+            });    
+        })
     }
 
     async open(l){
