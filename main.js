@@ -166,19 +166,20 @@ module.exports = class Uccb extends EventEmitter {
     async open(l){
         //TODO: обработка this.isConnected и this.isOpen
 
-        if (!this.status === 'connected') throw new Error(`Can't open device. Status: ${this.status}`);
-
-        l = l || 'O';
-        let cmd = this.baudRates.forEach(val => {
-            if (val.br === this.baudRate) return val.cmd;
-        })
-        cmd = cmd || 'S4';
-
+    
         return new Promise((resolve, reject) => {
+    
+            if (!this.isConnected) reject(`Can't open device. Port closed`);
+
+            l = l || 'O';
+            let cmd = this.baudRates.forEach(val => {
+                if (val.br === this.baudRate) return val.cmd;
+            })
+            cmd = cmd || 'S4';
+        
             this.writeCMD(`${cmd}\r${l}\r`)
             .then(
                 () => {
-                    this.status = 'open';
                     this.isOpen = true;
                     this.emit('open');
                     resolve(`Command: ${cmd}\r${l}\r send successfully`)    
@@ -199,16 +200,20 @@ module.exports = class Uccb extends EventEmitter {
     async close(){
         //TODO: обработка this.isConnected и this.isOpen
         //TODO: try ... catch
-        if (!this.status === 'open') throw new Error(`Device is not opened. `)
-        this.write('C\r')
-        .then(
-            () => {
-                this.isOpen = false;
-                this.emit('close');
-                resolve()
-            },
-            () => reject()
-        )
+        return new Promise((resolve, reject) => {
+            if (!this.isOpen) reject(`Device is not opened.`)
+            this.write('C\r')
+            .then(
+                () => {
+                    this.isOpen = false;
+                    this.emit('close');
+                    resolve(`CAN closed`)
+                },
+                (e) => reject(e)
+            )
+    
+        })
+
     }
 
     async writeCMD(str){
