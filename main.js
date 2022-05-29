@@ -205,7 +205,7 @@ module.exports = class Uccb extends EventEmitter {
 
     async writeCMD(str){
         return new Promise((resolve, reject) => {
-            if (srt === undefined) reject('CMD is empty')
+            if (str === undefined) reject('CMD is empty')
             if (!this.sendCMD === undefined) reject('Еhe previous command is executed')
             this.sendCMD = str;
             this.write(str)
