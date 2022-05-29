@@ -65,16 +65,7 @@ module.exports = class Uccb extends EventEmitter {
         if (!this.checkBaudRate(baudRate)){
             throw new Error(`Incorrect value baudRate: ${this.baudRate}`)
         };
-        this.getPath()
-        .then(
-            path => {
-                this.portName = path;
-                this.isPresentDevice = true;
-            },
-            err => {
-                throw (err);
-            }
-        )
+
         if (this.autoOpen){}
     }
 
@@ -119,18 +110,29 @@ module.exports = class Uccb extends EventEmitter {
 
     async connect(){
         return new Promise((resolve, reject) => {
-            if (!this.isPresentDevice) reject(`Port not found`);
-            this.sp = new SerialPort({ path: this.portName, baudRate: 115200, autoOpen: true }, (e) => {
-                if(e) {
-                    reject(e);
-                }else{
-                    this.isConnected = true;
-                    this.emit('connected');
+            this.getPath()
+            .then(
+                path => {
+                    this.portName = path;
+                    this.sp = new SerialPort({ path: this.portName, baudRate: 115200, autoOpen: true }, (e) => {
+                        if(e) {
+                            reject(e);
+                        }else{
+                            this.isConnected = true;
+                            this.emit('connected');
+                        }
+                    }); 
+                    this.parser = this.sp.pipe(new ReadlineParser({ delimiter: '\r' }))
+                    this.parser.on('data', (data) => {this.onData(data)});
+                    resolve('Port connected');        
+                },
+                err => {
+                    throw (err);
                 }
-            }); 
-            this.parser = this.sp.pipe(new ReadlineParser({ delimiter: '\r' }))
-            this.parser.on('data', (data) => {this.onData(data)});
-            resolve('Port connected');
+            )
+            .catch(err => {
+                reject(err);
+            })            
         })
     }
 
@@ -138,7 +140,7 @@ module.exports = class Uccb extends EventEmitter {
         return new Promise((resolve, reject) => {
             if (!this.isConnected) reject(`Device is disconnected already`);
             if (this.isOpen) {
-                //TODO: this.close();
+                this.close();
             }
             this.sp.close((e) => {
                 if (e) {
@@ -153,9 +155,6 @@ module.exports = class Uccb extends EventEmitter {
     }
 
     async open(l){
-        //TODO: обработка this.isConnected и this.isOpen
-
-    
         return new Promise((resolve, reject) => {
     
             if (!this.isConnected) reject(`Can't open device. Port closed`);
@@ -187,10 +186,9 @@ module.exports = class Uccb extends EventEmitter {
     }
 
     async close(){
-        //TODO: обработка this.isConnected и this.isOpen
-        //TODO: try ... catch
         return new Promise((resolve, reject) => {
-            if (!this.isOpen) reject(`Device is not opened.`)
+            if (!this.isOpen) resolve(`Device is not opened.`)
+            if (!this.isConnected) reject(`Port closed!`)
             this.write('C\r')
             .then(
                 () => {
