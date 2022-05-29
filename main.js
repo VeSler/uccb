@@ -1,10 +1,13 @@
 /**
+ * 0.0.2 -
+ * 
  * 0.0.1 - 
  * реализовано:
  * находим порт, подключаемся, активируем адаптер  (на 125)
  * 
  * connect()
  * disconnect();
+ * 
  * open();
  * listen();
  * close();
@@ -23,20 +26,22 @@
 
 const { SerialPort } = require('serialport');
 const EventEmitter = require('node:events');
-const { resolve } = require('node:path');
 const { ReadlineParser } = require('@serialport/parser-readline');
 
 module.exports = class Uccb extends EventEmitter {
 
     portName;   // назва порту UART
     autoOpen;   //
+    baudRate;
+    ld;
+
     sp;         // SerialPort 
     parser;     // serialport/parser-readline
+
     status = 'disconnected'; // disconnected, connected, open, listen 
     isConnected = false;
     isOpen = false;
-    baudRate;
-    ld;
+    sendCMD;
 
     baudRates = ['100k', '125k', '250k', '500k', '800k', '1M'];
     cmds = [
@@ -120,13 +125,19 @@ module.exports = class Uccb extends EventEmitter {
                     }
                 }); 
                 this.parser = this.sp.pipe(new ReadlineParser({ delimiter: '\r' }))
-                this.parser.on('data', (data) => {this.emit('data', data)});
+                this.parser.on('data', (data) => {this.onData(data)});
                 resolve();
             })
         })
     }
 
-    onData(data){
+    onData(_data){
+        if(this.sendCMD === undefined){
+            data = _data;
+        }else{
+            data = `Send CMD: ${JSON.stringify(this.sendCMD)},\r\nAnswer: ${JSON.stringify(_data)}`;
+            this.sendCMD = undefined;
+        }
         this.emit('data', data);
     }
 
@@ -173,39 +184,44 @@ module.exports = class Uccb extends EventEmitter {
         this.emit('close');
     }
 
-    async write(str){
-        this.sp.write(str, (e) => {
-            if (e) {
-                throw new Error(`Error in function ${arguments.callee.name}, can't write to port: ${e.message}`);
-            }
-        });
-        this.sp.drain(() => {
-            resolve;
-        });
+    async writeCMD(str){
+        return new Promise((resolve, reject) => {
+            if (srt === undefined) reject('CMD is empty')
+            if (!this.sendCMD === undefined) reject('Еhe previous command is executed')
+            this.sendCMD = str;
+            this.write(str)
+            .then(
+                answer => {
+                    resolve(answer)
+                },
+                error => {
+                    reject(error)
+                }
+            )
+            .catch(
+                error => {
+                    reject(error)
+                }
+            ) 
+        })
     }
 
-    /*
-    //TODO: как-то выбросить данные наружу ...
-    On(){
-        this.sp.on('open', this.onOpen.bind(this));
+    async write(str){
+        return new Promise((resolve, reject) => {
+            this.sp.write(str, (e) => {
+                if (e) {
+                    reject(new Error(`Error in function ${arguments.callee.name}, can't write to port: ${e.message}`))
+                }
+            });
+            this.sp.drain((e) => {
+                if (e) {
+                    reject(new Error(`Error in function ${arguments.callee.name}, can't drain to port: ${e.message}`))
+                }
+                resolve;
+            });
+        })
+    }
 
-        this.sp.on('data', this.onData.bind(this));
-
-        this.sp.on('error', this.onError.bind(this))
-    } 
-
-    onOpen(){
-
-    };
-
-    onData(data){
-        
-    };
-
-    onError(){
-
-    };
-*/
     checkBaudRate(br){
         return this.baudRate.includes(br);
     }
