@@ -74,6 +74,7 @@ module.exports = class Uccb extends EventEmitter {
             await this.portInit();
             await this.portOpen();
             await this.canOpen(); //default
+            this.emit('canStart');
         }catch(e){
             throw e;
         }
@@ -86,6 +87,7 @@ module.exports = class Uccb extends EventEmitter {
         try{
             await this.canClose();
             await this.portClose();
+            this.emit('canStop');
         }catch(e){
             throw(e);
         }
@@ -153,6 +155,7 @@ module.exports = class Uccb extends EventEmitter {
         try{
             await this.canSetBaudRate('S4')
             await this.writeStr('O')
+            this.emit('canOpen');
         }catch (e){
             throw e;
         }
@@ -166,6 +169,7 @@ module.exports = class Uccb extends EventEmitter {
     async canClose() {
         try{
             await this.writeStr('C');
+            this.emit('canClose');
         }catch (e){
             throw e;
         }
