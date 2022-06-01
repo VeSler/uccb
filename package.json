@@ -23,6 +23,7 @@
     },
     "main": "main.js",
     "scripts": {
+        "prepublish": "npm prune",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "bugs": {

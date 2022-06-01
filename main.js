@@ -45,6 +45,9 @@ module.exports = class Uccb extends EventEmitter {
     isOpen = false;
     isPresentDevice = false;
     sendCMD;
+    HV;
+    SV;
+    SN;
 
     baudRates = ['100k', '125k', '250k', '500k', '800k', '1M'];
     cmds = [
@@ -66,13 +69,17 @@ module.exports = class Uccb extends EventEmitter {
     }
 
     async start(mode) {
-        //TODO: 
+        //TODO: в проверке
         // - находим устройство (порт к нему) 
         // - подключаемся к порту
         // - открываем устройство с нужным mode
         try{
             await this.portInit();
             await this.portOpen();
+            // перед открытием, получить версии HW, прошивки, серийный номер
+            //TODO: проверить возвращаемое значение при отправке зпароса скопом: "V\rv\rN\r"
+            //      в разной очередности 
+//            await this.getDeviceInfo();
             await this.canOpen(); //default
             this.emit('canStart');
         }catch(e){
@@ -80,8 +87,17 @@ module.exports = class Uccb extends EventEmitter {
         }
     }
 
+    async getDeviceInfo(){
+        if (this.isOpen && !this.isConnected) throw new Error(`Can't get info from device. Port is closed or device is started`)
+
+        await this.writeCMD('V');
+        await this.writeCMD('v');
+        await this.writeCMD('N');
+
+    }
+
     async stop() {
-        //TODO:
+        //TODO: в проверке
         // - закрываем устройство
         // - закрываем порт
         try{
@@ -94,21 +110,18 @@ module.exports = class Uccb extends EventEmitter {
     }
 
     async portInit() {
-        // найти порт
-        return new Promise((resolve, reject) => {
-            try{           
-                let list = await this.getUARTList();
-                list.forEach(item => {
-                    if (dev?.pnpId.includes("CAN_USB_ConverterBasic")) {
-                        this.portName = item?.path;
-                        resolve(item?.path);
-                    }
-                })
-                reject(new Error(`Path not found. List devices: ${JSON.stringify(res)}`))
-            }catch(e){
-                reject(e);
-            }
-        })
+        try{           
+            let list = await this.getUARTList();
+            list.forEach(item => {
+                if (dev?.pnpId.includes("CAN_USB_ConverterBasic")) {
+                    this.portName = item?.path;
+                    return(item?.path);
+                }
+            })
+            throw new Error(`Path not found. List devices: ${JSON.stringify(res)}`)
+        }catch(e){
+            throw e;
+        }
     }
 
     async portOpen() {
@@ -129,6 +142,7 @@ module.exports = class Uccb extends EventEmitter {
     }
 
     async portClose() {
+        // закрываем подключение к порту
         return new Promise((resolve, reject) => {
             if (!this.isConnected) resolve(`WARNING: Port has already been closed`);
             this.sp.close((e) => {
@@ -144,6 +158,7 @@ module.exports = class Uccb extends EventEmitter {
     }
 
     async canSetBaudRate(canBaudRate) {
+        // установка скорости шины CAN
         try{
             canBaudRate = canBaudRate || 'S4';
             await this.writeStr(canBaudRate);    
@@ -151,6 +166,7 @@ module.exports = class Uccb extends EventEmitter {
             throw e;
         }
     }
+
     async canOpen() {
         try{
             await this.canSetBaudRate('S4')
@@ -177,11 +193,11 @@ module.exports = class Uccb extends EventEmitter {
     }
 
     async getUARTList() {
-        return new Promise((resolve, reject) => {
-            SerialPort.list()
-                .then(res => resolve(res), err => reject(err))
-                .catch(err => reject(err))
-        })
+        try {
+            return await SerialPort.list();
+        } catch (e){
+            throw e;
+        }
     }
 
     async getPath() {
@@ -381,6 +397,24 @@ module.exports = class Uccb extends EventEmitter {
         if (this.sendCMD === undefined) {
             data = _data;
         } else {
+            switch (this.sendCMD) {
+                case 'V':
+                    //hardware version.
+                    this.HV = _data;    
+                    break;
+                case 'v':
+                    //firmware version.
+                    this.FV = _data;
+                    break;
+                
+                case 'N':
+                    //serial number.
+                    this.SN = _data;
+                    break;
+                    
+                default:
+                    break;
+            }
             data = `Send CMD: ${JSON.stringify(this.sendCMD)}, Answer: ${JSON.stringify(_data)}`;
             this.sendCMD = undefined;
         }
