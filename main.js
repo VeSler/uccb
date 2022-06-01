@@ -113,7 +113,7 @@ module.exports = class Uccb extends EventEmitter {
         try{           
             let list = await this.getUARTList();
             list.forEach(item => {
-                if (dev?.pnpId.includes("CAN_USB_ConverterBasic")) {
+                if (list?.pnpId.includes("CAN_USB_ConverterBasic")) {
                     this.portName = item?.path;
                     return(item?.path);
                 }
