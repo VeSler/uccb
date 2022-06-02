@@ -112,12 +112,12 @@ module.exports = class Uccb extends EventEmitter {
     async portInit() {
         try{           
             let list = await this.getUARTList();
-            list.forEach(item => {
+            for(let item of list){
                 if (item?.pnpId.includes("CAN_USB_ConverterBasic")) {
                     this.portName = item?.path;
                     return(item?.path);
                 }
-            })
+            }
             throw new Error(`Path not found. List devices: ${JSON.stringify(res)}`)
         }catch(e){
             throw e;
