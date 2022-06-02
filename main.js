@@ -79,7 +79,7 @@ module.exports = class Uccb extends EventEmitter {
             // перед открытием, получить версии HW, прошивки, серийный номер
             //TODO: проверить возвращаемое значение при отправке зпароса скопом: "V\rv\rN\r"
             //      в разной очередности 
-//            await this.getDeviceInfo();
+            await this.getDeviceInfo();
             await this.canOpen(); //default
             this.emit('canStart');
         }catch(e){
@@ -346,7 +346,7 @@ module.exports = class Uccb extends EventEmitter {
             if (str === undefined) reject('CMD is empty')
             if (!this.sendCMD === undefined) reject('Еhe previous command is executed')
             this.sendCMD = str;
-            this.write(str)
+            this.writeStr(str)
                 .then(
                     answer => {
                         resolve(answer)
