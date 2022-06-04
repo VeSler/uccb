@@ -115,7 +115,7 @@ module.exports = class Uccb extends EventEmitter {
             for(let item of list){
                 if (item?.pnpId.includes("CAN_USB_ConverterBasic")) {
                     this.portName = item?.path;
-                    return(item?.path);
+                    return;
                 }
             }
             throw new Error(`Path not found. List devices: ${JSON.stringify(res)}`)
@@ -132,12 +132,12 @@ module.exports = class Uccb extends EventEmitter {
                     reject(e);
                 } else {
                     this.isConnected = true;
+                    this.parser = this.sp.pipe(new ReadlineParser({ delimiter: '\r' }))
+                    this.parser.on('data', (data) => { this.onData(data) });
                     this.emit('portOpen');
+                    resolve('Port opened');
                 }
             });
-            this.parser = this.sp.pipe(new ReadlineParser({ delimiter: '\r' }))
-            this.parser.on('data', (data) => { this.onData(data) });
-            resolve('Port opened');
         })
     }
 
@@ -200,72 +200,6 @@ module.exports = class Uccb extends EventEmitter {
         }
     }
 
-    async getPath() {
-        return new Promise((resolve, reject) => {
-            this.getUARTList()
-                .then(
-                    res => {
-                        res.forEach(dev => {
-                            if (dev?.pnpId.includes("CAN_USB_ConverterBasic")) {
-                                resolve(dev?.path);
-                            }
-                        })
-                        reject(new Error(`Path not found. List devices: ${JSON.stringify(res)}`))
-                    },
-                    err => {
-                        reject(err);
-                    }
-                )
-                .catch(err => reject(err))
-        })
-    }
-
-    async connect() {
-        return new Promise((resolve, reject) => {
-            this.getPath()
-                .then(
-                    path => {
-                        this.portName = path;
-                        this.sp = new SerialPort({ path: this.portName, baudRate: 115200, autoOpen: true }, (e) => {
-                            if (e) {
-                                reject(e);
-                            } else {
-                                this.isConnected = true;
-                                this.emit('connected');
-                            }
-                        });
-                        this.parser = this.sp.pipe(new ReadlineParser({ delimiter: '\r' }))
-                        this.parser.on('data', (data) => { this.onData(data) });
-                        resolve('Port connected');
-                    },
-                    err => {
-                        throw (err);
-                    }
-                )
-                .catch(err => {
-                    reject(err);
-                })
-        })
-    }
-
-    async disconnect() {
-        return new Promise((resolve, reject) => {
-            if (!this.isConnected) reject(`Device is disconnected already`);
-            if (this.isOpen) {
-                this.close();
-            }
-            this.sp.close((e) => {
-                if (e) {
-                    reject(`Device is disconnected already`)
-                } else {
-                    this.isConnected = false;
-                    this.emit('disconnected');
-                    resolve('Port disconnected successfully')
-                }
-            });
-        })
-    }
-
     async setBaudRate(br) {
         return new Promise((resolve, reject) => {
 
@@ -292,54 +226,6 @@ module.exports = class Uccb extends EventEmitter {
                 })
         })
     }
-    async open(mode) {
-        return new Promise((resolve, reject) => {
-
-            if (!this.isConnected) reject(`Can't open device. Port closed`);
-
-            mode = mode || 'O';
-            let cmd = this.baudRates.forEach(val => {
-                if (val.br === this.baudRate) return val.cmd;
-            })
-            cmd = cmd || 'S4';
-
-            this.writeCMD(`${cmd}\r${mode}\r`)
-                .then(
-                    () => {
-                        this.isOpen = true;
-                        this.emit('open');
-                        resolve(`Command: ${cmd}\r${mode}\r send successfully`)
-                    },
-                    (e) => {
-                        reject(e)
-                    })
-                .catch(e => {
-                    reject(e);
-                })
-        })
-    }
-
-    async listen() {
-        await this.open('L');
-    }
-
-    async close() {
-        return new Promise((resolve, reject) => {
-            if (!this.isOpen) resolve(`Device is not opened.`)
-            if (!this.isConnected) reject(`Port closed!`)
-            this.write('C\r')
-                .then(
-                    () => {
-                        this.isOpen = false;
-                        this.emit('close');
-                        resolve(`CAN closed`)
-                    },
-                    (e) => reject(e)
-                )
-
-        })
-
-    }
 
     async writeCMD(str) {
         return new Promise((resolve, reject) => {
@@ -363,27 +249,12 @@ module.exports = class Uccb extends EventEmitter {
         })
     }
 
-    async write(str) {
-        return new Promise((resolve, reject) => {
-            this.sp.write(str, (e) => {
-                if (e) {
-                    reject(new Error(`Error in function ${arguments.callee.name}, can't write to port: ${e.message}`))
-                }
-            });
-            this.sp.drain((e) => {
-                if (e) {
-                    reject(new Error(`Error in function ${arguments.callee.name}, can't drain to port: ${e.message}`))
-                }
-                resolve;
-            });
-        })
-    }
-
     async writeStr(_str) {
         return new Promise((resolve, reject) => {
             let str = `${_str}\r`;
             this.sp.write(str, (e) => {
                 if (e) reject(e);
+//                     reject(new Error(`Error in function ${arguments.callee.name}, can't write to port: ${e.message}`))                
             })
             this.sp.drain((e) => {
                 if (e) reject(e)
