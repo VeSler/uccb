@@ -240,16 +240,54 @@ module.exports = class Uccb extends EventEmitter {
         })
     }
 
+    parseMessage(m){
+        let _set = {
+            ext: false,
+            adr: '',
+            rtr: false,
+            len: 0,
+            dat: []
+        }
+        let char;
+        char = m[0];
+        switch (char){
+            case 't':
+                _set.len = m[4];
+                // 5 + l*2
+                for (let i = 0; i < _set.len; i++){
+                    _set.dat.push(m.slice(5+2*i, 7+2*i))
+                }
+            case 'r':
+                _set.adr = m.slice(1,4);
+                _set.rtr = true;        
+                break;
+            case 'T':
+                _set.ext = true;
+                _set.len = m[9];
+                // 9 + l*2
+                for (let i = 0; i < _set.len; i++){
+                    _set.dat.push(m.slice(10+2*i, 12+2*i))
+                }
+            case 'R':
+                _set.adr = m.slice(1,9);
+                _set.rtr = true;        
+                break;
+            default:
+                throw new Error(`Error parse input message. Wrong type message: ${JSON.stringify(char)}`)
+                
+                break
+        }
+        this.emit('canMessage', JSON.stringify(_set));
+    }
+
     onData(_data) {
         /**
-         * TODO: интерпретация данных полученных из порта 
-         * краткий план :-)
-         * 1. удалить переносы строки
-         * 2. проверить длину 
-         *  - если =0 - получено подтверждение како-то команды 
-         *  - если >0 - то следующий шаг
-         * 3. проверяем первый символ
+         * интерпретация данных полученных из порта 
+         * проверяем первый символ
          *  - "t" - получено сообщение
+         *  - "T"
+         *  - "r"
+         *  - "R"
          *  - "v" - версия прошивки
          *  - "V" - версия платы
          *  - "N" - серийный номер
@@ -270,6 +308,9 @@ module.exports = class Uccb extends EventEmitter {
         }else{
             switch (d[0]) {
                 case 't':
+                case 'T':
+                case 'r':
+                case 'R':
                     // получено сообщение
                     // выдать данные на парсинг
                     this.emit('data', d);
@@ -288,7 +329,8 @@ module.exports = class Uccb extends EventEmitter {
                     // serial number
                     //
                     this.SN = d.slice(1);
-                    this.emit('info', d);
+                    let inf = {fv: this.FV, hv: this.HV, sn: this.SN};
+                    this.emit('info', JSON.stringify(inf));
                     break;
                 case 'z':
                     // message sending
