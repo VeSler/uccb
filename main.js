@@ -273,20 +273,24 @@ module.exports = class Uccb extends EventEmitter {
                     // firmware version
                     //
                     this.FV = d.slice(1);
+                    this.emit('info', d);
                     break;
                 case 'V':
                     // hardware version
                     //
                     this.HV = d.slice(1);
+                    this.emit('info', d);
                     break;
                 case 'N':
                     // serial number
                     //
                     this.SN = d.slice(1);
+                    this.emit('info', d);
                     break;
                 case 'z':
                     // message sending
                     this.emit('send', d);
+                    this.emit('info', d);
                     break;
                 default:
                     this.emit('error', `Unknown type message: ${d}`)
