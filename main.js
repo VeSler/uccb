@@ -273,7 +273,7 @@ module.exports = class Uccb extends EventEmitter {
                 _set.rtr = true;        
                 break;
             default:
-                throw new Error(`Error parse input message. Wrong type message: ${JSON.stringify(char)}`)
+                throw new Error(`Error parse input message. Wrong type message: ${JSON.stringify(char)}`);
                 
                 break
         }
@@ -313,6 +313,7 @@ module.exports = class Uccb extends EventEmitter {
                 case 'R':
                     // получено сообщение
                     // выдать данные на парсинг
+                    this.parseMessage(d);
                     this.emit('data', d);
                     break;
                 case 'v':
