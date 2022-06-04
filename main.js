@@ -44,7 +44,6 @@ module.exports = class Uccb extends EventEmitter {
     isConnected = false;
     isOpen = false;
     isPresentDevice = false;
-    sendCMD;
     HV;
     SV;
     SN;
@@ -68,19 +67,23 @@ module.exports = class Uccb extends EventEmitter {
         };
     }
 
-    async start(mode) {
-        //TODO: в проверке
-        // - находим устройство (порт к нему) 
-        // - подключаемся к порту
-        // - открываем устройство с нужным mode
+    async start(_mode) {
+        // mode = 'O' | 'L' | 'l'
+        let mode = _mode || 'O';
         try{
             await this.portInit();
             await this.portOpen();
             // перед открытием, получить версии HW, прошивки, серийный номер
-            //TODO: проверить возвращаемое значение при отправке зпароса скопом: "V\rv\rN\r"
-            //      в разной очередности 
             await this.getDeviceInfo();
-            await this.canOpen(); //default
+            if ('O' === mode){
+                await this.canOpen(); //default
+            }else if ('L' === mode){
+                await this.canListen();
+            }else if ('l' === mode){
+                await this.canLoopBack();
+            }else{
+                throw new Error(`Can't Start device in unknown mode: ${mode}`)
+            }
             this.emit('canStart');
         }catch(e){
             throw e;
@@ -90,16 +93,12 @@ module.exports = class Uccb extends EventEmitter {
     async getDeviceInfo(){
         if (this.isOpen && !this.isConnected) throw new Error(`Can't get info from device. Port is closed or device is started`)
 
-        await this.writeCMD('V');
-        await this.writeCMD('v');
-        await this.writeCMD('N');
-
+        await this.writeStr('V');
+        await this.writeStr('v');
+        await this.writeStr('N');
     }
 
     async stop() {
-        //TODO: в проверке
-        // - закрываем устройство
-        // - закрываем порт
         try{
             await this.canClose();
             await this.portClose();
@@ -213,10 +212,10 @@ module.exports = class Uccb extends EventEmitter {
             })
             cmd = cmd || 'S4';
 
-            this.writeCMD(`${cmd}\r`)
+            this.writeStr(cmd)
                 .then(
                     () => {
-                        resolve(`Command: ${cmd}\r send successfully`)
+                        resolve(`Command: ${cmd} send successfully`)
                     },
                     (e) => {
                         reject(e)
@@ -224,28 +223,6 @@ module.exports = class Uccb extends EventEmitter {
                 .catch(e => {
                     reject(e);
                 })
-        })
-    }
-
-    async writeCMD(str) {
-        return new Promise((resolve, reject) => {
-            if (str === undefined) reject('CMD is empty')
-            if (!this.sendCMD === undefined) reject('Еhe previous command is executed')
-            this.sendCMD = str;
-            this.writeStr(str)
-                .then(
-                    answer => {
-                        resolve(answer)
-                    },
-                    error => {
-                        reject(error)
-                    }
-                )
-                .catch(
-                    error => {
-                        reject(error)
-                    }
-                )
         })
     }
 
@@ -264,32 +241,58 @@ module.exports = class Uccb extends EventEmitter {
     }
 
     onData(_data) {
-        let data;
-        if (this.sendCMD === undefined) {
-            data = _data;
-        } else {
-            switch (this.sendCMD) {
-                case 'V':
-                    //hardware version.
-                    this.HV = _data;    
+        /**
+         * TODO: интерпретация данных полученных из порта 
+         * краткий план :-)
+         * 1. удалить переносы строки
+         * 2. проверить длину 
+         *  - если =0 - получено подтверждение како-то команды 
+         *  - если >0 - то следующий шаг
+         * 3. проверяем первый символ
+         *  - "t" - получено сообщение
+         *  - "v" - версия прошивки
+         *  - "V" - версия платы
+         *  - "N" - серийный номер
+         *  - "z" - сообщение отправлено
+         */
+        let d = _data;
+        d.replaceAll('\r', '');
+        d.replaceAll('\n', '');
+        if (0 === d.length) {
+            // получено подтверждение како-то команды
+            // 
+            return;
+        }else{
+            switch (d[0]) {
+                case 't':
+                    // получено сообщение
+                    // выдать данные на парсинг
+                    this.emit('data', d);
                     break;
                 case 'v':
-                    //firmware version.
-                    this.FV = _data;
+                    // firmware version
+                    //
+                    this.FV = d.slice(1);
                     break;
-                
+                case 'V':
+                    // hardware version
+                    //
+                    this.HV = d.slice(1);
+                    break;
                 case 'N':
-                    //serial number.
-                    this.SN = _data;
+                    // serial number
+                    //
+                    this.SN = d.slice(1);
                     break;
-                    
+                case 'z':
+                    // message sending
+                    this.emit('send', d);
+                    break;
                 default:
+                    this.emit('error', `Unknown type message: ${d}`)
                     break;
             }
-            data = `Send CMD: ${JSON.stringify(this.sendCMD)}, Answer: ${JSON.stringify(_data)}`;
-            this.sendCMD = undefined;
         }
-        this.emit('data', data);
     }
 
     checkBaudRate(br) {
