@@ -256,8 +256,14 @@ module.exports = class Uccb extends EventEmitter {
          *  - "z" - сообщение отправлено
          */
         let d = _data;
-        d.replaceAll('\r', '');
-        d.replaceAll('\n', '');
+        try{
+            String(d).replaceAll("\r", "");
+            String(d).replaceAll("\n", "");
+        }catch (e){
+            let err = e?.message || 'ERROR: Can\'t replace'
+            this.emit('error', err)
+        }
+
         if (0 === d.length) {
             // получено подтверждение како-то команды
             // 
