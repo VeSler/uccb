@@ -257,8 +257,7 @@ module.exports = class Uccb extends EventEmitter {
          */
         let d = _data;
         try{
-            String(d).replaceAll("\r", "");
-            String(d).replaceAll("\n", "");
+            d.replace(/\r|\n/g, '');
         }catch (e){
             let err = e?.message || 'ERROR: Can\'t replace'
             this.emit('error', err)
@@ -279,13 +278,11 @@ module.exports = class Uccb extends EventEmitter {
                     // firmware version
                     //
                     this.FV = d.slice(1);
-                    this.emit('info', d);
                     break;
                 case 'V':
                     // hardware version
                     //
                     this.HV = d.slice(1);
-                    this.emit('info', d);
                     break;
                 case 'N':
                     // serial number
@@ -296,7 +293,6 @@ module.exports = class Uccb extends EventEmitter {
                 case 'z':
                     // message sending
                     this.emit('send', d);
-                    this.emit('info', d);
                     break;
                 default:
                     this.emit('error', `Unknown type message: ${d}`)
