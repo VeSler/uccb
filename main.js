@@ -252,24 +252,29 @@ module.exports = class Uccb extends EventEmitter {
         char = m[0];
         switch (char){
             case 't':
+                _set.adr = m.slice(1,4);
                 _set.len = m[4];
                 // 5 + l*2
                 for (let i = 0; i < _set.len; i++){
                     _set.dat.push(m.slice(5+2*i, 7+2*i))
                 }
+                break;
             case 'r':
                 _set.adr = m.slice(1,4);
                 _set.rtr = true;        
                 break;
             case 'T':
+                _set.adr = m.slice(1,9);
                 _set.ext = true;
                 _set.len = m[9];
                 // 9 + l*2
                 for (let i = 0; i < _set.len; i++){
                     _set.dat.push(m.slice(10+2*i, 12+2*i))
                 }
+                break;
             case 'R':
                 _set.adr = m.slice(1,9);
+                _set.ext = true;
                 _set.rtr = true;        
                 break;
             default:
