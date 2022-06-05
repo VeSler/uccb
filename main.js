@@ -58,8 +58,15 @@ module.exports = class Uccb extends EventEmitter {
         { cmd: 'S8', br: '1M' },
     ]
 
+    ///** @type {TypeA|TypeB|...} */
+    //let obj;
+
+    /**
+     * @constructor
+     * @param {*} baudRate 
+     */
     constructor(baudRate) {
-        //baudRate: '', '100k', '125k', '250k', '500k', '800k', '1M'
+        //baudRate: '' | '100k' | '125k' | '250k' | '500k' | '800k' | '1M'
         super();
         this.baudRate = baudRate || '125k';
         if (!this.checkBaudRate(baudRate)) {
@@ -70,20 +77,15 @@ module.exports = class Uccb extends EventEmitter {
     async start(_mode) {
         // mode = 'O' | 'L' | 'l'
         let mode = _mode || 'O';
+        if (!["O", "L", "l"].includes(mode)){
+            throw new Error(`Can't Start device in unknown mode: ${mode}`)
+        }
         try{
             await this.portInit();
             await this.portOpen();
             // перед открытием, получить версии HW, прошивки, серийный номер
             await this.getDeviceInfo();
-            if ('O' === mode){
-                await this.canOpen(); //default
-            }else if ('L' === mode){
-                await this.canListen();
-            }else if ('l' === mode){
-                await this.canLoopBack();
-            }else{
-                throw new Error(`Can't Start device in unknown mode: ${mode}`)
-            }
+            await this.canOpen(mode); //default
             this.emit('canStart');
         }catch(e){
             throw e;
@@ -166,21 +168,17 @@ module.exports = class Uccb extends EventEmitter {
         }
     }
 
-    async canOpen() {
+    async canOpen(type) {
+        let _type = type || "O";
         try{
             await this.canSetBaudRate('S4')
-            await this.writeStr('O')
+            await this.writeStr(_type)
             this.emit('canOpen');
         }catch (e){
             throw e;
         }
     }
-    async canListen() {
 
-    }
-    async canLoopBack() {
-
-    }
     async canClose() {
         try{
             await this.writeStr('C');
@@ -240,6 +238,49 @@ module.exports = class Uccb extends EventEmitter {
         })
     }
 
+    /**
+     * @brief 
+     * 
+     * @param {boolean} ext - указывает на расширенный формат (29bit) адреса вместо короткого (11bit) 
+     * @param {string} adr  - строка адреса сообщения в 16-ом формате
+     * @param {boolean} rtr - 
+     * @param {number} len  - длина сообщения 
+     * @param {Array} dat   - массив сообщения в 10-ом формате
+     */
+    async sendMessage(ext, adr, rtr, len, dat){
+        if (!rtr && !(+len == +dat.length)) throw new Error(`The length of the DAT array does not match the parameter LEN. LEN: ${len}, DAT.LENGTH: ${dat.length}.`)
+
+        function addDat(len, dat){
+            let _str
+            for (let i = 0; i < len; i++){
+                _str += dat[i].toString(16).padStart(2, "0");
+            }
+            return _str
+        }
+        let str;
+        if (ext){
+            str = adr.padStart(8, "0") + len;
+            if (rtr){
+                str = "R" + str; 
+            }else{
+                str = "T" + str + addDat(len, dat);
+            }
+        }else{
+            str = adr.padStart(3, "0") + len
+            if (rtr) {
+                str = "r" + str;
+            }else{
+                str = "t" + str + addDat(len, dat);
+            }
+        }
+        await this.writeStr(str);
+    }
+
+    /**
+     * 
+     * @param {string} m
+     * @returns {object} .emmit 'canMessage'
+     */
     parseMessage(m){
         let _set = {
             ext: false,
@@ -256,7 +297,7 @@ module.exports = class Uccb extends EventEmitter {
                 _set.len = m[4];
                 // 5 + l*2
                 for (let i = 0; i < _set.len; i++){
-                    _set.dat.push(m.slice(5+2*i, 7+2*i))
+                    _set.dat.push(m.slice(5+2*i, 7+2*i)) //TODO: add converter to number
                 }
                 break;
             case 'r':
