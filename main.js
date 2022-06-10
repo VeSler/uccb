@@ -247,18 +247,17 @@ module.exports = class Uccb extends EventEmitter {
      * @param {number} len  - длина сообщения 
      * @param {Array} dat   - массив сообщения в 10-ом формате
      */
-    //async
-    sendMessage(ext, adr, rtr, len, dat){
+    async sendMessage(ext, adr, rtr, len, dat){
         if (!rtr && !(+len == +dat.length)) throw new Error(`The length of the DAT array does not match the parameter LEN. LEN: ${len}, DAT.LENGTH: ${dat.length}.`)
 
         function addDat(len, dat){
-            let _str
+            let _str = "";
             for (let i = 0; i < len; i++){
                 _str += dat[i].toString(16).padStart(2, "0");
             }
             return _str
         }
-        let str;
+        let str = "";
         if (ext){
             str = adr.padStart(8, "0") + len;
             if (rtr){
@@ -274,8 +273,7 @@ module.exports = class Uccb extends EventEmitter {
                 str = "t" + str + addDat(len, dat);
             }
         }
-        return str;
-        //await this.writeStr(str);
+        await this.writeStr(str);
     }
 
     /**
