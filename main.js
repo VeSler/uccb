@@ -247,7 +247,8 @@ module.exports = class Uccb extends EventEmitter {
      * @param {number} len  - длина сообщения 
      * @param {Array} dat   - массив сообщения в 10-ом формате
      */
-    async sendMessage(ext, adr, rtr, len, dat){
+    //async
+    sendMessage(ext, adr, rtr, len, dat){
         if (!rtr && !(+len == +dat.length)) throw new Error(`The length of the DAT array does not match the parameter LEN. LEN: ${len}, DAT.LENGTH: ${dat.length}.`)
 
         function addDat(len, dat){
