@@ -92,14 +92,6 @@ module.exports = class Uccb extends EventEmitter {
         }
     }
 
-    async getDeviceInfo(){
-        if (this.isOpen && !this.isConnected) throw new Error(`Can't get info from device. Port is closed or device is started`)
-
-        await this.writeStr('V');
-        await this.writeStr('v');
-        await this.writeStr('N');
-    }
-
     async stop() {
         try{
             await this.canClose();
@@ -108,6 +100,14 @@ module.exports = class Uccb extends EventEmitter {
         }catch(e){
             throw(e);
         }
+    }
+
+    async getDeviceInfo(){
+        if (this.isOpen && !this.isConnected) throw new Error(`Can't get info from device. Port is closed or device is started`)
+
+        await this.writeStr('V');
+        await this.writeStr('v');
+        await this.writeStr('N');
     }
 
     async portInit() {
@@ -273,7 +273,8 @@ module.exports = class Uccb extends EventEmitter {
                 str = "t" + str + addDat(len, dat);
             }
         }
-        await this.writeStr(str);
+        return str;
+        //await this.writeStr(str);
     }
 
     /**
