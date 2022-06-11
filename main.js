@@ -49,6 +49,8 @@ module.exports = class Uccb extends EventEmitter {
     status = "";
 
     sendMem = [];
+    fWriting = false;
+
     baudRates = ['100k', '125k', '250k', '500k', '800k', '1M'];
     cmds = [
         { cmd: 'S3', br: '100k' },
@@ -207,6 +209,7 @@ module.exports = class Uccb extends EventEmitter {
     }
 
     async writeStr(_str) {
+        // записывает строку в порт и дожидается завершения 
         return new Promise((resolve, reject) => {
             let str = `${_str}\r`;
             this.sp.write(str, (e) => {
@@ -227,7 +230,7 @@ module.exports = class Uccb extends EventEmitter {
     }
 
     /**
-     * @brief 
+     * @brief создает сообщение для отправки и ставит в очередь
      * 
      * @param {boolean} ext - указывает на расширенный формат (29bit) адреса вместо короткого (11bit) 
      * @param {string} adr  - строка адреса сообщения в 16-ом формате
@@ -235,7 +238,7 @@ module.exports = class Uccb extends EventEmitter {
      * @param {number} len  - длина сообщения 
      * @param {Array} dat   - массив сообщения в 10-ом формате
      */
-    async sendMessage(ext, adr, rtr, len, dat){
+    async createMessage(ext, adr, rtr, len, dat){
         if (!rtr && !(+len == +dat.length)) throw new Error(`The length of the DAT array does not match the parameter LEN. LEN: ${len}, DAT.LENGTH: ${dat.length}.`)
 
         function addDat(len, dat){
@@ -262,9 +265,20 @@ module.exports = class Uccb extends EventEmitter {
             }
         }
         this.sendMem.push(str);
-        await this.writeStr(str);
+        if (!this.fWriting) {
+            this.fWriting = true;
+            this.sendMessage();
+        }
     }
-
+    async sendMessage(){
+        // отправка сообщений из очереди
+        // Private
+        if (this.sendMem.length = 0){
+            this.fWriting = false;
+        }else{
+            await this.writeStr(this.sendMem[0]);
+        }
+    }
     /**
      * 
      * @param {string} m
@@ -371,11 +385,11 @@ module.exports = class Uccb extends EventEmitter {
                 case 'z':
                     // message sending
                     this.emit('send', `Sending message: ${this.sendMem.shift()}`);
+                    this.sendMessage();
                     break;
                 case 'F':
                     this.emit('status', d);
-                    
-                        break;
+                    break;
                 default:
                     this.emit('error', `Unknown type message: ${d}`)
                     break;
