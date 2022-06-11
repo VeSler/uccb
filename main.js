@@ -15,8 +15,6 @@
  * 
  * TODO: обработать получение данных
  * 
- * setBaudRate()
- * 
  * версии прошивки ...
  * 
  * getHV
@@ -74,9 +72,9 @@ module.exports = class Uccb extends EventEmitter {
         };
     }
 
-    async start(_mode) {
+    async start(mode) {
         // mode = 'O' | 'L' | 'l'
-        let mode = _mode || 'O';
+        let _mode = mode || "O";
         if (!["O", "L", "l"].includes(mode)){
             throw new Error(`Can't Start device in unknown mode: ${mode}`)
         }
@@ -85,7 +83,7 @@ module.exports = class Uccb extends EventEmitter {
             await this.portOpen();
             // перед открытием, получить версии HW, прошивки, серийный номер
             await this.getDeviceInfo();
-            await this.canOpen(mode); //default
+            await this.canOpen(_mode); //default
             this.emit('canStart');
         }catch(e){
             throw e;
@@ -108,6 +106,7 @@ module.exports = class Uccb extends EventEmitter {
         await this.writeStr('V');
         await this.writeStr('v');
         await this.writeStr('N');
+        await this.writeStr('F');
     }
 
     async portInit() {
@@ -132,9 +131,9 @@ module.exports = class Uccb extends EventEmitter {
                 if (e) {
                     reject(e);
                 } else {
-                    this.isConnected = true;
                     this.parser = this.sp.pipe(new ReadlineParser({ delimiter: '\r' }))
                     this.parser.on('data', (data) => { this.onData(data) });
+                    this.isConnected = true;
                     this.emit('portOpen');
                     resolve('Port opened');
                 }
@@ -170,8 +169,10 @@ module.exports = class Uccb extends EventEmitter {
 
     async canOpen(type) {
         let _type = type || "O";
+        // this.baudRate
+        let _speed = speed || "S4";
         try{
-            await this.canSetBaudRate('S4')
+            await this.canSetBaudRate(_speed)
             await this.writeStr(_type)
             this.emit('canOpen');
         }catch (e){
@@ -197,44 +198,22 @@ module.exports = class Uccb extends EventEmitter {
         }
     }
 
-    async setBaudRate(br) {
-        return new Promise((resolve, reject) => {
-
-            if (!this.isConnected) reject(`Can't open device. Port closed`);
-
-            let cmd = this.baudRates.forEach(val => {
-                if (val.br === br) {
-                    this.baudRate = br;
-                    return val.cmd;
-                }
-            })
-            cmd = cmd || 'S4';
-
-            this.writeStr(cmd)
-                .then(
-                    () => {
-                        resolve(`Command: ${cmd} send successfully`)
-                    },
-                    (e) => {
-                        reject(e)
-                    })
-                .catch(e => {
-                    reject(e);
-                })
-        })
-    }
-
     async writeStr(_str) {
         return new Promise((resolve, reject) => {
             let str = `${_str}\r`;
             this.sp.write(str, (e) => {
-                if (e) reject(e);
+                if (e) {
+                    reject(e)
+                }
 //                     reject(new Error(`Error in function ${arguments.callee.name}, can't write to port: ${e.message}`))                
             })
             this.sp.drain((e) => {
-                if (e) reject(e)
+                if (e) {
+                    reject(e)
+                }else{
+                    resolve(`Sending: ${JSON.stringify(str)}`);
+                }
             })
-            resolve(`Sending: ${JSON.stringify(str)}`);
         })
     }
 
