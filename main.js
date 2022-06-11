@@ -169,8 +169,13 @@ module.exports = class Uccb extends EventEmitter {
 
     async canOpen(type) {
         let _type = type || "O";
-        // this.baudRate
-        let _speed = speed || "S4";
+        let _speed = "S4";
+
+        cmds.forEach(element => {
+            if (element.br === this.baudRate) {
+                _speed = element.cmd;
+            }
+        });
         try{
             await this.canSetBaudRate(_speed)
             await this.writeStr(_type)
