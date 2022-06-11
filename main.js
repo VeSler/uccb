@@ -273,7 +273,7 @@ module.exports = class Uccb extends EventEmitter {
     async sendMessage(){
         // отправка сообщений из очереди
         // Private
-        if (this.sendMem.length = 0){
+        if (this.sendMem.length == 0){
             this.fWriting = false;
         }else{
             await this.writeStr(this.sendMem[0]);
