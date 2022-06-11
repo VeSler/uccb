@@ -29,6 +29,7 @@ const EventEmitter = require('node:events');
 const { ReadlineParser } = require('@serialport/parser-readline');
 const { resolve } = require('node:path');
 
+
 module.exports = class Uccb extends EventEmitter {
 
     portName;   // назва порту UART
@@ -42,10 +43,12 @@ module.exports = class Uccb extends EventEmitter {
     isConnected = false;
     isOpen = false;
     isPresentDevice = false;
-    HV;
-    SV;
-    SN;
+    HV = "";
+    SV = "";
+    SN = "";
+    status = "";
 
+    sendMem = [];
     baudRates = ['100k', '125k', '250k', '500k', '800k', '1M'];
     cmds = [
         { cmd: 'S3', br: '100k' },
@@ -258,6 +261,7 @@ module.exports = class Uccb extends EventEmitter {
                 str = "t" + str + addDat(len, dat);
             }
         }
+        this.sendMem.push(str);
         await this.writeStr(str);
     }
 
@@ -366,8 +370,12 @@ module.exports = class Uccb extends EventEmitter {
                     break;
                 case 'z':
                     // message sending
-                    this.emit('send', d);
+                    this.emit('send', `Sending message: ${this.sendMem.shift()}`);
                     break;
+                case 'F':
+                    this.emit('status', d);
+                    
+                        break;
                 default:
                     this.emit('error', `Unknown type message: ${d}`)
                     break;
