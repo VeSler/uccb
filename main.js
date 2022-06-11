@@ -192,6 +192,7 @@ module.exports = class Uccb extends EventEmitter {
 
     async canClose() {
         try{
+            //TODO: если есть сообщения в очереди на отправку - очистить или дождаться окончания передачи?
             await this.writeStr('C');
             this.emit('canClose');
         }catch (e){
@@ -267,7 +268,7 @@ module.exports = class Uccb extends EventEmitter {
         this.sendMem.push(str);
         if (!this.fWriting) {
             this.fWriting = true;
-            this.sendMessage();
+            await this.sendMessage();
         }
     }
     async sendMessage(){
@@ -276,7 +277,11 @@ module.exports = class Uccb extends EventEmitter {
         if (this.sendMem.length == 0){
             this.fWriting = false;
         }else{
-            await this.writeStr(this.sendMem[0]);
+            try{
+                await this.writeStr(this.sendMem[0]);
+            }catch (e){
+                console.err(e)
+            }
         }
     }
     /**
