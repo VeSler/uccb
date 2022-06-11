@@ -171,7 +171,7 @@ module.exports = class Uccb extends EventEmitter {
         let _type = type || "O";
         let _speed = "S4";
 
-        cmds.forEach(element => {
+        this.cmds.forEach(element => {
             if (element.br === this.baudRate) {
                 _speed = element.cmd;
             }
