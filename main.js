@@ -216,9 +216,10 @@ module.exports = class Uccb extends EventEmitter {
                 if (e) {
                     reject(e)
                 }else{
-                    resolve(`Sending: ${JSON.stringify(str)}`);
+                    //// ?????
                 }
             })
+            resolve(`Sending: ${JSON.stringify(str)}`);
         })
     }
 
