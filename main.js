@@ -29,6 +29,7 @@
 const { SerialPort } = require('serialport');
 const EventEmitter = require('node:events');
 const { ReadlineParser } = require('@serialport/parser-readline');
+const { resolve } = require('node:path');
 //const { resolve } = require('node:path');
  
 module.exports = class Uccb extends EventEmitter {
@@ -85,20 +86,23 @@ module.exports = class Uccb extends EventEmitter {
      * @returns Promise
      */
     async start(mode) {
-        // mode = 'O' | 'L' | 'l'
-        let _mode = mode || "O";
-        if (!["O", "L", "l"].includes(mode)){
-            throw new Error(`Can't Start device in unknown mode: ${mode}`)
-        }
-        try{
-            await this.prepareConnection();
-            await this.portOpen();
-            await this.getDeviceInfo();
-            await this.canOpen(_mode);
-            this.emit('canStart', 'CAN_BUS started successfully');
-        }catch(e){
-            throw e;
-        }
+        return new Promise ((resolve, reject) => {
+            let _mode = mode || "O";
+            if (!["O", "L", "l"].includes(mode)){
+                reject(new Error(`Can't Start device in unknown mode: ${mode}`))
+            }
+            try{
+                await this.prepareConnection();
+                await this.portOpen();
+                await this.getDeviceInfo();
+                await this.canOpen(_mode);
+                this.emit('canStart', 'CAN_BUS started successfully');
+                resolve();
+            }catch(e){
+                reject(e);
+            }
+    
+        })
     }
  
     async stop() {
