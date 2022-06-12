@@ -50,9 +50,10 @@
      SN = "";
      status = "";
  
-     sendMem = [];
-     fWriting = false;
- 
+     preparedMessages = [];
+     fSending = false;
+     fClosing = false;
+
      baudRates = ['100k', '125k', '250k', '500k', '800k', '1M'];
      cmds = [
          { cmd: 'S3', br: '100k' },
@@ -86,12 +87,11 @@
              throw new Error(`Can't Start device in unknown mode: ${mode}`)
          }
          try{
-             await this.portInit();
+             await this.prepareConnection();
              await this.portOpen();
-             // перед открытием, получить версии HW, прошивки, серийный номер
              await this.getDeviceInfo();
-             await this.canOpen(_mode); //default
-             this.emit('canStart');
+             await this.canOpen(_mode);
+             this.emit('canStart', 'CANBUS started successfully');
          }catch(e){
              throw e;
          }
@@ -116,7 +116,7 @@
          await this.writeStr('F');
      }
  
-     async portInit() {
+     async prepareConnection() {
          try{           
              let list = await this.getUARTList();
              for(let item of list){
@@ -267,20 +267,20 @@
                  str = "t" + str + addDat(len, dat);
              }
          }
-         this.sendMem.push(str);
-         if (!this.fWriting) {
-             this.fWriting = true;
+         this.preparedMessages.push(str);
+         if (!this.fSending) {
+             this.fSending = true;
              await this.sendMessage();
          }
      }
      async sendMessage(){
          // отправка сообщений из очереди
          // Private
-         if (this.sendMem.length == 0){
-             this.fWriting = false;
+         if (this.preparedMessages.length == 0){
+             this.fSending = false;
          }else{
              try{
-                 await this.writeStr(this.sendMem[0]);
+                 await this.writeStr(this.preparedMessages[0]);
              }catch (e){
                  console.err(e)
              }
@@ -391,7 +391,7 @@
                      break;
                  case 'z':
                      // message sending
-                     this.emit('send', `Sending message: ${this.sendMem.shift()}`);
+                     this.emit('send', `Sending message: ${this.preparedMessages.shift()}`);
                      this.sendMessage();
                      break;
                  case 'F':
