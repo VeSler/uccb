@@ -50,8 +50,9 @@ module.exports = class Uccb extends EventEmitter {
     SN = "";
     status = "";
 
-    sendMem = [];
-    fWriting = false;
+    preparedMessages = [];
+    fSending = false;
+    fClosing = false;
 
     baudRates = ['100k', '125k', '250k', '500k', '800k', '1M'];
     cmds = [
@@ -79,32 +80,47 @@ module.exports = class Uccb extends EventEmitter {
         };
     }
 
+    /**
+     * @brief Start device
+     * @public
+     * @param {*} mode = 'O' | 'L' | 'l'
+     * @returns Promise
+     */
     async start(mode) {
-        // mode = 'O' | 'L' | 'l'
-        let _mode = mode || "O";
-        if (!["O", "L", "l"].includes(mode)){
-            throw new Error(`Can't Start device in unknown mode: ${mode}`)
-        }
-        try{
-            await this.portInit();
-            await this.portOpen();
-            // перед открытием, получить версии HW, прошивки, серийный номер
-            await this.getDeviceInfo();
-            await this.canOpen(_mode); //default
-            this.emit('canStart');
-        }catch(e){
-            throw e;
-        }
+        return new Promise((resolve, reject) => {
+            let _mode = mode ?? "O";
+            if (!["O", "L", "l"].includes(_mode)){
+                reject(new Error(`Can't Start device with unknown parameter. Mode: ${_mode}`))
+            }
+            try{
+                await this.prepareConnection();
+                await this.portOpen();
+                await this.getDeviceInfo();
+                await this.canOpen(_mode);
+                this.emit('canStart', 'CANBUS started successfully');
+                resolve();
+            }catch(e){
+                reject(e);
+            }    
+        })
     }
 
+    /**
+     * @brief Stop device
+     * @public
+     * @returns Promise
+     */
     async stop() {
-        try{
-            await this.canClose();
-            await this.portClose();
-            this.emit('canStop');
-        }catch(e){
-            throw(e);
-        }
+        return new Promise((resolve, reject) => {
+            try{
+                await this.canClose();
+                await this.portClose();
+                this.emit('canStop');
+                resolve();
+            }catch(e){
+                reject(e);
+            }
+        })
     }
 
     async getDeviceInfo(){
@@ -116,7 +132,10 @@ module.exports = class Uccb extends EventEmitter {
         await this.writeStr('F');
     }
 
-    async portInit() {
+    /**
+     * @brief 
+     */
+    async prepareConnection() {
         try{           
             let list = await this.getUARTList();
             for(let item of list){
@@ -176,7 +195,7 @@ module.exports = class Uccb extends EventEmitter {
 
     async canOpen(type) {
         let _type = type || "O";
-        let _speed = "S4";
+        let _speed = "S4";  // set default
 
         this.cmds.forEach(element => {
             if (element.br === this.baudRate) {
@@ -184,9 +203,10 @@ module.exports = class Uccb extends EventEmitter {
             }
         });
         try{
+            this.fClosing = false;
             await this.canSetBaudRate(_speed)
             await this.writeStr(_type)
-            this.emit('canOpen');
+            this.emit('canOpen', `CANBUS opened with transmission speed ${JSON.stringify(this.baudRate)}`);
         }catch (e){
             throw e;
         }
@@ -194,7 +214,11 @@ module.exports = class Uccb extends EventEmitter {
 
     async canClose() {
         try{
-            //TODO: если есть сообщения в очереди на отправку - очистить или дождаться окончания передачи?
+            this.fClosing = true;
+            while (this.preparedMessages.length > 0) {
+                // whiting ?
+            }
+
             await this.writeStr('C');
             this.emit('canClose');
         }catch (e){
@@ -219,7 +243,6 @@ module.exports = class Uccb extends EventEmitter {
                 if (e) {
                     reject(e)
                 }
-//                     reject(new Error(`Error in function ${arguments.callee.name}, can't write to port: ${e.message}`))                
             })
             this.sp.drain((e) => {
                 if (e) {
@@ -241,8 +264,34 @@ module.exports = class Uccb extends EventEmitter {
      * @param {number} len  - длина сообщения 
      * @param {Array} dat   - массив сообщения в 10-ом формате
      */
-    async createMessage(ext, adr, rtr, len, dat){
-        if (!rtr && !(+len == +dat.length)) throw new Error(`The length of the DAT array does not match the parameter LEN. LEN: ${len}, DAT.LENGTH: ${dat.length}.`)
+    async newMessage(ext, adr, rtr, len, dat){
+        return new Promise((resolve, reject) => {
+            if (this.fClosing) reject(new Error(`Can't send new messages. Device in the process of shutting down.`))
+            if (!rtr && !(+len == +dat.length)) reject(new Error(`The length of the DAT array does not match the parameter LEN. LEN: ${len}, DAT.LENGTH: ${dat.length}.`))
+
+            let str = "";
+            if (ext){
+                str = adr.padStart(8, "0") + len;
+                if (rtr){
+                    str = "R" + str; 
+                }else{
+                    str = "T" + str + addDat(len, dat);
+                }
+            }else{
+                str = adr.padStart(3, "0") + len
+                if (rtr) {
+                    str = "r" + str;
+                }else{
+                    str = "t" + str + addDat(len, dat);
+                }
+            }
+            this.preparedMessages.push(str);
+            if (!this.fSending) {
+                this.fSending = true;
+                await this.sendMessage();
+            }
+            resolve (this.preparedMessages.length);
+        })
 
         function addDat(len, dat){
             let _str = "";
@@ -251,45 +300,26 @@ module.exports = class Uccb extends EventEmitter {
             }
             return _str
         }
-        let str = "";
-        if (ext){
-            str = adr.padStart(8, "0") + len;
-            if (rtr){
-                str = "R" + str; 
-            }else{
-                str = "T" + str + addDat(len, dat);
-            }
-        }else{
-            str = adr.padStart(3, "0") + len
-            if (rtr) {
-                str = "r" + str;
-            }else{
-                str = "t" + str + addDat(len, dat);
-            }
-        }
-        this.sendMem.push(str);
-        if (!this.fWriting) {
-            this.fWriting = true;
-            await this.sendMessage();
-        }
+
     }
     async sendMessage(){
         // отправка сообщений из очереди
         // Private
-        if (this.sendMem.length == 0){
-            this.fWriting = false;
+        if (this.preparedMessages.length == 0){
+            this.fSending = false;
         }else{
             try{
-                await this.writeStr(this.sendMem[0]);
+                await this.writeStr(this.preparedMessages[0]);
             }catch (e){
                 console.err(e)
+                throw(e);
             }
         }
     }
     /**
      * 
      * @param {string} m
-     * @returns {object} .emmit 'canMessage'
+     * @returns {object} .emit 'canMessage'
      */
     parseMessage(m){
         let _set = {
@@ -307,7 +337,7 @@ module.exports = class Uccb extends EventEmitter {
                 _set.len = m[4];
                 // 5 + l*2
                 for (let i = 0; i < _set.len; i++){
-                    _set.dat.push(m.slice(5+2*i, 7+2*i)) //TODO: add converter to number
+                    _set.dat.push(m.slice(5+2*i, 7+2*i))
                 }
                 break;
             case 'r':
@@ -348,6 +378,7 @@ module.exports = class Uccb extends EventEmitter {
          *  - "V" - версия платы
          *  - "N" - серийный номер
          *  - "z" - сообщение отправлено
+         *  - "F" - Read status/error flag of can controller
          */
         let d = _data;
         try{
@@ -391,7 +422,7 @@ module.exports = class Uccb extends EventEmitter {
                     break;
                 case 'z':
                     // message sending
-                    this.emit('send', `Sending message: ${this.sendMem.shift()}`);
+                    this.emit('send', `Sending message: ${this.preparedMessages.shift()}`);
                     this.sendMessage();
                     break;
                 case 'F':
