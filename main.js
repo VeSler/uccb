@@ -112,12 +112,13 @@ module.exports = class Uccb extends EventEmitter {
             })
             .then(() => {
                     this.emit('canStart', 'CAN_BUS started successfully');
+                    resolve();
                 },
                 (e) => {
                     throw e;
             })
             .catch((e) => {
-                throw e;
+                reject(e);
             })
         })
     }
