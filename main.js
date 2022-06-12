@@ -87,42 +87,22 @@ module.exports = class Uccb extends EventEmitter {
      */
     start(mode) {
         return new Promise((resolve, reject) => {
-            resolve();
-            /*
             let _mode = mode || "O";
             if (!["O", "L", "l"].includes(mode)){
                 reject(new Error(`Can't Start device in unknown mode: ${mode}`))
             }
+            resolve();
             this.prepareConnection()
-            .then(() => {
-                    return this.portOpen();
-                },
-                (e) => {
-                    throw e;
-            })
-            .then(() => {
-                    return this.getDeviceInfo();
-                },
-                (e) => {
-                    throw e;
-            })
-            .then(() => {
-                    return this.canOpen(_mode);
-                },
-                (e) => {
-                    throw e;
-            })
+            .then(() => this.portOpen())
+            .then(() => this.getDeviceInfo())
+            .then(() => this.canOpen(_mode))
             .then(() => {
                     this.emit('canStart', 'CAN_BUS started successfully');
                     resolve();
-                },
-                (e) => {
-                    throw e;
             })
-            .catch((e) => {
+            .catch(e => {
                 reject(e);
             })
-            */
         })
     }
  
