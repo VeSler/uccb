@@ -91,7 +91,7 @@ module.exports = class Uccb extends EventEmitter {
             if (!["O", "L", "l"].includes(mode)){
                 reject(new Error(`Can't Start device in unknown mode: ${mode}`))
             }
-            resolve();
+            //resolve();
             this.prepareConnection()
             .then(() => this.portOpen())
             .then(() => this.getDeviceInfo())
