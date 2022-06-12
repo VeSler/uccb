@@ -26,86 +26,90 @@
  * маски ...
  */
 
- const { SerialPort } = require('serialport');
- const EventEmitter = require('node:events');
- const { ReadlineParser } = require('@serialport/parser-readline');
- const { resolve } = require('node:path');
+const { SerialPort } = require('serialport');
+const EventEmitter = require('node:events');
+const { ReadlineParser } = require('@serialport/parser-readline');
+//const { resolve } = require('node:path');
  
+module.exports = class Uccb extends EventEmitter {
  
- module.exports = class Uccb extends EventEmitter {
+    portName;   // назва порту UART
+    baudRate;
+    mode;
+    ld;
  
-     portName;   // назва порту UART
-     baudRate;
-     mode;
-     ld;
+    sp;         // SerialPort 
+    parser;     // serialport/parser-readline
  
-     sp;         // SerialPort 
-     parser;     // serialport/parser-readline
+    isConnected = false;
+    isOpen = false;
+    isPresentDevice = false;
+    HV = "";
+    SV = "";
+    SN = "";
+    status = "";
  
-     isConnected = false;
-     isOpen = false;
-     isPresentDevice = false;
-     HV = "";
-     SV = "";
-     SN = "";
-     status = "";
- 
-     preparedMessages = [];
-     fSending = false;
-     fClosing = false;
+    preparedMessages = [];
+    fSending = false;
+    fClosing = false;
 
-     baudRates = ['100k', '125k', '250k', '500k', '800k', '1M'];
-     cmds = [
-         { cmd: 'S3', br: '100k' },
-         { cmd: 'S4', br: '125k' },
-         { cmd: 'S5', br: '250k' },
-         { cmd: 'S6', br: '500k' },
-         { cmd: 'S7', br: '800k' },
-         { cmd: 'S8', br: '1M' },
-     ]
+    baudRates = ['100k', '125k', '250k', '500k', '800k', '1M'];
+    cmds = [
+        { cmd: 'S3', br: '100k' },
+        { cmd: 'S4', br: '125k' },
+        { cmd: 'S5', br: '250k' },
+        { cmd: 'S6', br: '500k' },
+        { cmd: 'S7', br: '800k' },
+        { cmd: 'S8', br: '1M' },
+    ]
  
-     ///** @type {TypeA|TypeB|...} */
-     //let obj;
+    ///** @type {TypeA|TypeB|...} */
+    //let obj;
  
-     /**
-      * @constructor
-      * @param {*} baudRate 
-      */
-     constructor(baudRate) {
-         //baudRate: '' | '100k' | '125k' | '250k' | '500k' | '800k' | '1M'
-         super();
-         this.baudRate = baudRate || '125k';
-         if (!this.checkBaudRate(baudRate)) {
-             throw new Error(`Incorrect value baudRate: ${this.baudRate}`)
-         };
-     }
+    /**
+     * @constructor
+     * @param {*} baudRate = '' | '100k' | '125k' | '250k' | '500k' | '800k' | '1M'
+     */
+    constructor(baudRate) {
+        super();
+        this.baudRate = baudRate || '125k';
+        if (!this.checkBaudRate(baudRate)) {
+            throw new Error(`Incorrect value baudRate: ${this.baudRate}`)
+        };
+    }
  
-     async start(mode) {
-         // mode = 'O' | 'L' | 'l'
-         let _mode = mode || "O";
-         if (!["O", "L", "l"].includes(mode)){
-             throw new Error(`Can't Start device in unknown mode: ${mode}`)
-         }
-         try{
-             await this.prepareConnection();
-             await this.portOpen();
-             await this.getDeviceInfo();
-             await this.canOpen(_mode);
-             this.emit('canStart', 'CANBUS started successfully');
-         }catch(e){
-             throw e;
-         }
-     }
+    /**
+     * @brief Start device
+     * @public
+     * @param {*} mode = 'O' | 'L' | 'l'
+     * @returns Promise
+     */
+    async start(mode) {
+        // mode = 'O' | 'L' | 'l'
+        let _mode = mode || "O";
+        if (!["O", "L", "l"].includes(mode)){
+            throw new Error(`Can't Start device in unknown mode: ${mode}`)
+        }
+        try{
+            await this.prepareConnection();
+            await this.portOpen();
+            await this.getDeviceInfo();
+            await this.canOpen(_mode);
+            this.emit('canStart', 'CAN_BUS started successfully');
+        }catch(e){
+            throw e;
+        }
+    }
  
-     async stop() {
-         try{
-             await this.canClose();
-             await this.portClose();
-             this.emit('canStop');
-         }catch(e){
-             throw(e);
-         }
-     }
+    async stop() {
+        try{
+            await this.canClose();
+            await this.portClose();
+            this.emit('canStop');
+        }catch(e){
+            throw(e);
+        }
+    }
  
      async getDeviceInfo(){
          if (this.isOpen && !this.isConnected) throw new Error(`Can't get info from device. Port is closed or device is started`)
@@ -241,7 +245,7 @@
       * @param {number} len  - длина сообщения 
       * @param {Array} dat   - массив сообщения в 10-ом формате
       */
-     async createMessage(ext, adr, rtr, len, dat){
+     async newMessage(ext, adr, rtr, len, dat){
          if (!rtr && !(+len == +dat.length)) throw new Error(`The length of the DAT array does not match the parameter LEN. LEN: ${len}, DAT.LENGTH: ${dat.length}.`)
  
          function addDat(len, dat){
