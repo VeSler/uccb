@@ -1,5 +1,5 @@
 /**
- * 0.1.20
+ * 0.1.21
  * 
  * 0.1.0 - новая структура интерфейса
  * 
@@ -78,4 +78,7 @@ module.exports = class Uccb extends EventEmitter {
         };
     }
 
+    checkBaudRate(br) {
+        return this.baudRate.includes(br);
+    }
 }
