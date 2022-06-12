@@ -1,5 +1,5 @@
 /**
- * v0.1.22
+ * v0.1.23
  * 
  * 0.1.0 - новая структура интерфейса
  * 
@@ -134,7 +134,9 @@ module.exports = class Uccb extends EventEmitter {
     /**
      * @brief 
      */
-     async prepareConnection() {
+
+    async prepareConnection() {
+         /*
         try{           
             let list = await this.getUARTList();
             for(let item of list){
@@ -147,6 +149,7 @@ module.exports = class Uccb extends EventEmitter {
         }catch(e){
             throw e;
         }
+        */
     }
 
 
