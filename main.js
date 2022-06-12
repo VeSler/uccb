@@ -87,6 +87,8 @@ module.exports = class Uccb extends EventEmitter {
      */
     start(mode) {
         return new Promise((resolve, reject) => {
+            resolve();
+            /*
             let _mode = mode || "O";
             if (!["O", "L", "l"].includes(mode)){
                 reject(new Error(`Can't Start device in unknown mode: ${mode}`))
@@ -120,6 +122,7 @@ module.exports = class Uccb extends EventEmitter {
             .catch((e) => {
                 reject(e);
             })
+            */
         })
     }
  
