@@ -7,13 +7,6 @@
  * реализовано:
  * находим порт, подключаемся, активируем адаптер  (на 125)
  * 
- * connect()
- * disconnect();
- * 
- * open();
- * listen();
- * close();
- * 
  * 
  * TODO: обработать получение данных
  * 
@@ -24,20 +17,51 @@
  * getSN
  * 
  * маски ...
+ *
+ * MnnbbfiiiiiiiiImmmmmmmmF
+ * 
+ * M: Set acceptance filter mask.
+ * nn: filter number 0-1B           // Specifies the filter which will be initialized
+ *                                  // This parameter must be a number between Min_Data = 0 and Max_Data = 27
+ * bb: bank number 0-1B             // Select the start slave bank filter
+ *                                  // This parameter must be a number between Min_Data = 0 and Max_Data = 28
+ * f: filter flags                  // bitMask
+ * 1 Filter Activation              // Enable or disable the filter.
+ * 2 Mode: Mask or Filter           // Specifies the filter mode to be initialized, 0 - MASK, 1 - LIST
+ * 4 Scale: 2x16 bit or 1x32 bit    // Specifies the filter scale. 0 - 16bit, 1 - 32bit
+ * 8 FIFO selection set as 0        // Specifies the FIFO (0 or 1U) which will be assigned to the filter
+ * iiiiiiii: depends on Scale one 32 bit id or two 16 bit CAN frame id for filtering
+ * I: id flags
+ * 1 RTR1: filter for retransmission flag
+ * 2 EX1: filter for extended flag
+ * 4 RTR2: filter for retransmission flag (for 16 bit filtering)
+ * 8 EX2: filter for extended flag
+ * mmmmmmmm: If mode set to MASK, mask value, else as iiiiiiii
+ * F: flags for mask same as I
+ * 
+ * Example:
+ * M nn bb f iiiiiiii I mmmmmmmm F
+ * M 00 00 7 00000001 0 00000001 0      (set id filter for ID=1 and ID=1)   Enable + Filter + 32bit
+ * M 00 00 5 00000000 0 00000000 F      ignore all extended CAN packets     Enable + Mask + 32bit
+ * Md                                   delete all filters
+ * 
+ * M 00 00 5 00000600 0 00000F00 0      two separate filters one for 0x600 (in bank 0 )
+ * M 01 00 5 00000700 0 00000F00 0      and 2nd for 0x700 ( in bank 1)
+ * 
+ * M 00 00 5 00000600 0 00000F00 0      If only 0x600 - 0x6FF then
+ * 
  */
 
 const { SerialPort } = require('serialport');
 const EventEmitter = require('node:events');
 const { ReadlineParser } = require('@serialport/parser-readline');
 const { resolve } = require('node:path');
-//const { resolve } = require('node:path');
  
 module.exports = class Uccb extends EventEmitter {
  
-    portName;   // назва порту UART
+    portName;   // название порту USB
     baudRate;
     mode;
-    ld;
  
     sp;         // SerialPort 
     parser;     // serialport/parser-readline
@@ -64,12 +88,10 @@ module.exports = class Uccb extends EventEmitter {
         { cmd: 'S8', br: '1M' },
     ]
  
-    ///** @type {TypeA|TypeB|...} */
-    //let obj;
- 
-    /**
+     /**
      * @constructor
      * @param {*} baudRate = '' | '100k' | '125k' | '250k' | '500k' | '800k' | '1M'
+     * @default '125k'
      */
     constructor(baudRate) {
         super();
@@ -80,7 +102,7 @@ module.exports = class Uccb extends EventEmitter {
     }
  
     /**
-     * @brief Start device
+     * @method Start device
      * @public
      * @param {*} mode = 'O' | 'L' | 'l'
      * @returns Promise
@@ -104,7 +126,12 @@ module.exports = class Uccb extends EventEmitter {
             })
         })
     }
- 
+    
+    /**
+     * @method Stop device
+     * @public
+     * @returns Promise
+     */
     async stop() {
         return new Promise((resolve, reject) => {
             this.canClose()
@@ -128,7 +155,7 @@ module.exports = class Uccb extends EventEmitter {
      */
     async prepareConnection() {
         try{           
-            let list = await this.getUARTList();
+            let list = await this.getUSBList();
             for(let item of list){
                 if (item?.pnpId.includes("CAN_USB_ConverterBasic")) {
                     this.portName = item?.path;
@@ -142,7 +169,6 @@ module.exports = class Uccb extends EventEmitter {
     }
  
     async portOpen() {
-        // открыть порт
         return new Promise((resolve, reject) => {
             this.sp = new SerialPort({ path: this.portName, baudRate: 115200, autoOpen: true }, (e) => {
                 if (e) {
@@ -196,8 +222,8 @@ module.exports = class Uccb extends EventEmitter {
         try{
             this.fClosing = false;
             await this.canSetBaudRate(_speed)
-            await this.writeStr(_type)
-            this.emit('canOpen');
+            let s = await this.writeStr(_type)
+            this.emit('canOpen', s);
         }catch (e){
             throw e;
         }
@@ -217,7 +243,7 @@ module.exports = class Uccb extends EventEmitter {
         }
     }
  
-    async getUARTList() {
+    async getUSBList() {
         try {
             return await SerialPort.list();
         } catch (e){
@@ -226,7 +252,6 @@ module.exports = class Uccb extends EventEmitter {
     }
  
     async writeStr(_str) {
-        // записывает строку в порт и дожидается завершения 
         return new Promise((resolve, reject) => {
             let str = `${_str}\r`;
             this.sp.write(str, (e) => {
@@ -234,14 +259,14 @@ module.exports = class Uccb extends EventEmitter {
                     reject(e)
                 }
             })
-            this.sp.drain((e) => {
+            this.sp.drain(function(e) {
                 if (e) {
                     reject(e)
                 }else{
-                    //// ?????
+                    resolve(`Sending0: ${JSON.stringify(str)}`);
                 }
             })
-            resolve(`Sending: ${JSON.stringify(str)}`);
+            resolve(`Sending1: ${JSON.stringify(str)}`);
         })
     }
  
@@ -375,6 +400,7 @@ module.exports = class Uccb extends EventEmitter {
          *  - "V" - версия платы
          *  - "N" - серийный номер
          *  - "z" - сообщение отправлено
+         *  - "Z"
          *  - "F" - Read status/error flag of can controller
          */
         let d = _data;
@@ -418,6 +444,7 @@ module.exports = class Uccb extends EventEmitter {
                     this.emit('info', JSON.stringify(inf));
                     break;
                 case 'z':
+                case 'Z':
                     // message sending
                     this.emit('send', `Sending message: ${this.preparedMessages.shift()}`);
                     this.sendMessage();
