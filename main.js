@@ -361,12 +361,12 @@ module.exports = class Uccb extends EventEmitter {
                 offset = 5
                 _set.ext = true;
             case 't':
-                _set.adr = m.slice(1,4+offset);
-                _set.len = +m[4+offset];
+                _set.adr = parseInt(m.slice(1,4+offset), 16);
+                _set.len = parseInt(m[4+offset], 10);
                 // 5 + l*2
                 // 9 + l*2
                 for (let i = 0; i < _set.len; i++){
-                    _set.dat.push(+m.slice(5+offset+2*i, 7+offset+2*i))
+                    _set.dat.push(parseInt(m.slice(5+offset+2*i, 7+offset+2*i), 16));
                 }
                 break;
             case 'R':
