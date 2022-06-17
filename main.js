@@ -312,6 +312,14 @@ module.exports = class Uccb extends EventEmitter {
                     str = "t" + str + addDat(len, dat);
                 }
             }
+            this.newMessageRaw(str)
+            .then(res => resolve(res))
+
+        })
+    }
+
+    newMessageRaw(str){
+        return new Promise((resolve, reject) => {
             this.preparedMessages.push(str);
             if (!this.fSending) {
                 this.fSending = true;
@@ -320,13 +328,13 @@ module.exports = class Uccb extends EventEmitter {
                     resolve (this.preparedMessages.length);
                 })
                 .catch((e) => {
-                    throw e;
+                    reject (e);
                 })
             }else{
                 resolve (this.preparedMessages.length);
-            }
+            }    
         })
-    }
+}
     
     async sendMessage(){
         // отправка сообщений из очереди
