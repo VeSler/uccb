@@ -177,7 +177,7 @@ module.exports = class Uccb extends EventEmitter {
                     this.parser = this.sp.pipe(new ReadlineParser({ delimiter: '\r' }))
                     this.parser.on('data', (data) => { this.onData(data) });
                     this.isConnected = true;
-                    this.emit('portOpen');
+                    this.emit('portOpen', `Port ${this.portName} opened`);
                     resolve('Port opened');
                 }
             });
@@ -210,8 +210,12 @@ module.exports = class Uccb extends EventEmitter {
         }
     }
  
-    async canOpen(type) {
-        let _type = type || "O";
+    /**
+     * 
+     * @param {string} mode 
+     */
+    async canOpen(mode) {
+        let _mode = mode || "O";
         let _speed = "S4";
  
         this.cmds.forEach(element => {
@@ -222,22 +226,24 @@ module.exports = class Uccb extends EventEmitter {
         try{
             this.fClosing = false;
             await this.canSetBaudRate(_speed)
-            let s = await this.writeStr(_type)
-            this.emit('canOpen', s);
+            let s = await this.writeStr(_mode)
+            this.emit('canOpen', `CanBus opened. Command: ${s}`);
         }catch (e){
             throw e;
         }
     }
  
+    /**
+     * 
+     */
     async canClose() {
         try{
             this.fClosing = true;
             while (this.preparedMessages.length > 0) {
                 // whiting ?
             }
-
-            await this.writeStr('C');
-            this.emit('canClose');
+            let s = await this.writeStr('C');
+            this.emit('canClose', `CanBus closed. Command: ${s}`);
         }catch (e){
             throw e;
         }
@@ -263,9 +269,8 @@ module.exports = class Uccb extends EventEmitter {
                 if (e) {
                     reject(e)
                 }
-                resolve(`Sending0: ${JSON.stringify(str)}`);
+                resolve(`Sending string: ${JSON.stringify(str)}`);
             })
-//            resolve(`Sending1: ${JSON.stringify(str)}`);
         })
     }
  
@@ -350,38 +355,30 @@ module.exports = class Uccb extends EventEmitter {
             len: 0,
             dat: []
         }
-        let char;
-        char = m[0];
-        switch (char){
-            case 't':
-                _set.adr = m.slice(1,4);
-                _set.len = m[4];
-                // 5 + l*2
-                for (let i = 0; i < _set.len; i++){
-                    _set.dat.push(m.slice(5+2*i, 7+2*i))
-                }
-                break;
-            case 'r':
-                _set.adr = m.slice(1,4);
-                _set.rtr = true;        
-                break;
+        let offset = 0;
+        switch (m[0]){
             case 'T':
-                _set.adr = m.slice(1,9);
+                offset = 5
                 _set.ext = true;
-                _set.len = m[9];
+            case 't':
+                _set.adr = m.slice(1,4+offset);
+                _set.len = +m[4+offset];
+                // 5 + l*2
                 // 9 + l*2
                 for (let i = 0; i < _set.len; i++){
-                    _set.dat.push(m.slice(10+2*i, 12+2*i))
+                    _set.dat.push(+m.slice(5+offset+2*i, 7+offset+2*i))
                 }
                 break;
             case 'R':
-                _set.adr = m.slice(1,9);
+                offset = 5;
                 _set.ext = true;
+            case 'r':
                 _set.rtr = true;        
+                _set.adr = m.slice(1,4+offset);
+                _set.len = +m[4+offset];
                 break;
             default:
-                throw new Error(`Error parse input message. Wrong type message: ${JSON.stringify(char)}`);
-                 
+                throw new Error(`Error parse input message. Wrong type message: ${JSON.stringify(m[0])}`);
                 break
         }
         this.emit('canMessage', JSON.stringify(_set));
