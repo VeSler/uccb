@@ -115,7 +115,7 @@ module.exports = class Uccb extends EventEmitter {
             }
             this.prepareConnection()
             .then(() => this.portOpen())
-            .then(() => this.getDeviceInfo())
+            .then(() => this.getInfoFromDevice())
             .then(() => this.canOpen(_mode))
             .then(() => {
                     this.emit('canStart', 'CAN_BUS started successfully');
@@ -135,13 +135,17 @@ module.exports = class Uccb extends EventEmitter {
     async stop() {
         return new Promise((resolve, reject) => {
             this.canClose()
-            .then(() => this.portClose())
-            .then(() => this.emit('canStop'))
+            .then(() => {
+                return this.portClose()})
+            .then((res) => {
+                this.emit('canStop',res);
+                resolve(res);
+            })
             .catch(e => reject(e))
         })
     }
  
-    async getDeviceInfo(){
+    async getInfoFromDevice(){
         if (this.isOpen && !this.isConnected) throw new Error(`Can't get info from device. Port is closed or device is started`)
  
         await this.writeStr('V');
@@ -269,7 +273,7 @@ module.exports = class Uccb extends EventEmitter {
                 if (e) {
                     reject(e)
                 }
-                resolve(`Sending string: ${JSON.stringify(str)}`);
+                resolve(`Sending string: ${JSON.stringify(_str)}`);
             })
         })
     }
