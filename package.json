@@ -23,6 +23,7 @@
     },
     "main": "main.js",
     "scripts": {
+        "ad_patch": "npm version patch",
         "prepublish": "npm prune",
         "test": "echo \"Error: no test specified\" && exit 1"
     },

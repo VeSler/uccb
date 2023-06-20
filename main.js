@@ -349,7 +349,7 @@ module.exports = class Uccb extends EventEmitter {
             try{
                 await this.writeStr(this.preparedMessages[0]);
             }catch (e){
-                console.err(e)
+                this.emit('error', err)
             }
         }
     }
