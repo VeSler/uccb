@@ -1,3 +1,6 @@
+(SLCAN Protocol)
+https://ucandevices.github.io/index.html
+
 ## Changelog
 
 ### 0.0.1
