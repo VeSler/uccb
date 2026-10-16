@@ -1,4 +1,6 @@
 /**
+ * v0.2.20
+ * 
  * v0.2.10
  * 
  * 0.1.0 - новая структура интерфейса
@@ -158,8 +160,7 @@ module.exports = class Uccb extends EventEmitter {
      * @brief 
      */
     async prepareConnection() {
-        try{  
-    /*         
+        try{          
             let list = await this.getUSBList();
             for(let item of list){
                 if (item?.pnpId.includes("CAN_USB_ConverterBasic")) {
@@ -167,11 +168,10 @@ module.exports = class Uccb extends EventEmitter {
                     return;
                 }
             }
-            throw new Error(`Path not found. List devices: ${JSON.stringify(res)}`)
-    */
+            this.portName = "/dev/ttyACM1";
+            // throw new Error(`Path not found. List devices: ${JSON.stringify(res)}`)
             // нажаль виявленя стіку по pnpId ненадійне, поле не є обов'язковим :-( 
             // ToDo: тест порту, хто на ньому висить і чи правильно відповідає
-            this.portName = "/dev/ttyACM0";
         }catch(e){
             throw e;
         }
