@@ -22,8 +22,7 @@
         "serialport": "^10.2.0"
     },
     "allowScripts": {
-        "all": true,
-        "@serialport/bindings-cpp": true
+        "all": true
     },
     "main": "main.js",
     "scripts": {
