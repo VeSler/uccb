@@ -21,6 +21,9 @@
     "devDependencies": {
         "serialport": "^10.2.0"
     },
+    "allowScripts": {
+        "all": true
+    },
     "main": "main.js",
     "scripts": {
         "ad_patch": "npm version patch",
