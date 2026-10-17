@@ -19,12 +19,14 @@
         "serialport": "^10.2.0"
     },
     "devDependencies": {
+        "@types/node": "^26.6.5",
         "serialport": "^10.2.0"
     },
     "allowScripts": {
-        "all": true
+        "all": true,
+        "@serialport/bindings-cpp": true
     },
-    "main": "main.js",
+    "main": "./lib/main.js",
     "scripts": {
         "ad_patch": "npm version patch",
         "prepublish": "npm prune",
