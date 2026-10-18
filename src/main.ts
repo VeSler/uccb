@@ -113,6 +113,12 @@ module.exports = class UCCB extends EventEmitter {
         });
     };
 
+    printInfo() {
+        console.log(`Firmware: ${this.firmWare}`);
+        console.log(`Hardware: ${this.hardWare}`);
+        console.log(`Serial Number: ${this.serialNumber}`);
+    };
+    
     async openPort(portName: string | null, options = {}) {
         return new Promise<void>((resolve, reject) => {
             if (!portName) {

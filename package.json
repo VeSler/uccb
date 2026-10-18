@@ -1,6 +1,6 @@
 {
     "name": "uccb",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "uccb",
     "author": {
         "name": "VeSler",
@@ -28,7 +28,7 @@
     },
     "main": "./lib/main.js",
     "scripts": {
-        "ad_patch": "npm version patch",
+        "ad_patch": "npm version patch --no-git-tag-version",
         "prepublish": "npm prune",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
