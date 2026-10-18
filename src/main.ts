@@ -27,7 +27,7 @@ interface iPort{
     locationId: string | undefined,
     vendorId: string | undefined,
     productId: string | undefined
-};
+}
 
 interface iCanMessage {
     id: number;
@@ -47,7 +47,8 @@ module.exports = class UCCB extends EventEmitter {
     firmWare: string | null = null;
     hardWare: string | null = null;
     serialNumber: string | null = null;
-    queue: string[] = [];
+    private queue: string[] = [];
+    private ackTimer: NodeJS.Timeout | null = null;
 
     constructor() {
         super();
@@ -57,6 +58,13 @@ module.exports = class UCCB extends EventEmitter {
     setCanBaudRate(baudRate: tCanBaudRate) {
         this.canBaudRate = baudRate;
     };
+
+private queueDrained:
+    | {
+        resolve: () => void;
+        reject: (error: Error) => void;
+      }
+    | undefined = undefined;
 
     getPortList() {
         return SerialPort.list();
@@ -220,8 +228,19 @@ module.exports = class UCCB extends EventEmitter {
                     break;
                 case 'z':
                 case 'Z':
-                    this.emit('send', `Sending message: ${this.queue.shift()}`);
-                    this.sendMessage();
+                    if (this.ackTimer) clearTimeout(this.ackTimer);
+                    this.ackTimer = null;
+
+                    this.queue.shift();
+
+                    if (this.queue.length > 0) {
+                        this.sendMessage();
+                    } else {
+                        const pending = this.queueDrained;
+                        this.queueDrained = undefined;
+                        pending?.resolve();
+                    }
+
                     break;
                 default:
                     this.emit('unknownData', data);
@@ -265,11 +284,16 @@ module.exports = class UCCB extends EventEmitter {
         this.emit('canMessage', JSON.stringify(val));
     }; 
     
-    sendMessage() {
-        if (this.queue.length > 0 && this.connection) {
-            const message = this.queue[0];
-            this.connection.write(message + '\r');
-        };
+    private sendMessage(): void {
+        if (this.queue.length === 0 || !this.connection) return;
+        this.connection.write(this.queue[0] + '\r', (err) => {
+            if (err) this.handleConnectionLost(err);
+        });
+        this.ackTimer = setTimeout(() => {
+            this.handleConnectionLost(
+                new Error('No Z acknowledgement; connection lost.')
+            );
+        }, 3000); // Встановіть таймаут відповідно до адаптера
     };
 
     newMessage(message: string) {
@@ -278,4 +302,26 @@ module.exports = class UCCB extends EventEmitter {
             this.sendMessage();
         };
     };
+
+    private handleConnectionLost(error: Error): void {
+        if (this.ackTimer) clearTimeout(this.ackTimer);
+        this.ackTimer = null;
+
+        this.queue.length = 0;
+
+        const pending = this.queueDrained;
+        this.queueDrained = undefined;
+        pending?.reject(error);
+
+        const port = this.connection;
+        this.connection = null;
+        this.spParser = null;
+        this.canMode = null;
+
+        this.emit('connectionLost', error);
+
+        if (port?.isOpen) {
+            port.close(() => {});
+        }
+    }
 };
