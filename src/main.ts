@@ -202,6 +202,13 @@ module.exports = class UCCB extends EventEmitter {
         this.emit("canWorked", 'CAN_BUS started successfully');
     };
 
+    sendCMD(cmd: string): void {
+        if (!this.connection) {
+            throw new Error("No active connection.");
+        }   
+        this.connection.write(`${cmd}\r`);  
+    }
+    
     async canClose(): Promise<void> {
         if (!this.connection) {
             throw new Error("No active connection.");
