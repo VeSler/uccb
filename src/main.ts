@@ -59,12 +59,27 @@ module.exports = class UCCB extends EventEmitter {
         this.canBaudRate = baudRate;
     };
 
-private queueDrained:
-    | {
-        resolve: () => void;
-        reject: (error: Error) => void;
-      }
-    | undefined = undefined;
+    private queueDrained:
+        | {
+            resolve: () => void;
+            reject: (error: Error) => void;
+        }
+        | undefined = undefined;
+
+    private waitForQueue(): Promise<void> {
+        if (this.queue.length === 0) return Promise.resolve();
+
+        return new Promise<void>((resolve, reject) => {
+            this.queueDrained = { resolve, reject };
+        });
+    }
+
+    private onQueueDrained(): void {
+        if (this.queue.length !== 0) return;
+
+        this.queueDrained?.resolve();
+        this.queueDrained = undefined;
+    }
 
     getPortList() {
         return SerialPort.list();
@@ -74,12 +89,12 @@ private queueDrained:
         this.portName = portName;
     };
 
-    findPortNameByPnpId(value: string):string | null {
+    findPortNameByPnpId(value: string): Promise<string | null> {
         return SerialPort.list().then((ports: iPort[]) => {
             const port = ports.find((p) => p.pnpId?.includes(value));
-            return port ? port.path : null;
+            return port?.path ?? null;
         });
-    };
+    }
 
     async start(mode: tCanMode, options = {}) {
         let _mode = mode || "O";
@@ -87,7 +102,7 @@ private queueDrained:
             throw new Error(`Invalid mode: ${_mode}. Valid modes are 'O', 'L', or 'l'.`);
         };
         if (!this.portName){
-            this.portName = this.findPortNameByPnpId(keyPortId);
+            this.portName = await this.findPortNameByPnpId(keyPortId);
         }
         await this.openPort(this.portName, options);
         await this.getInfo();
@@ -103,6 +118,7 @@ private queueDrained:
         return new Promise<void>((resolve, reject) => {
             if (!this.connection) {
                 reject("No active connection.");
+                return;
             }
             try {
                 this.connection.write("V\r");
@@ -131,10 +147,12 @@ private queueDrained:
         return new Promise<void>((resolve, reject) => {
             if (!portName) {
               reject("Port name is not specified.");
+              return;
             };
-            this.connection = new SerialPort({path: this.portName, baudRate: 115200, autoOpen: true,}, (err: Error | null) => {
+            this.connection = new SerialPort({path: portName, baudRate: 115200, autoOpen: true,}, (err: Error | null) => {
                 if (err) {
                     reject(`Error opening port: ${err.message}`);
+                    return;
                 }else {
                     this.spParser = this.connection.pipe(new ReadlineParser({ delimiter: '\r' }));
                     this.spParser.on('data', (data: string) => {this.onData(data)});
@@ -164,43 +182,47 @@ private queueDrained:
         });
     };
 
-    async canOpen(mode: tCanMode) {
-        return new Promise<void>((resolve, reject) => {
-            if (!this.connection) {
-                reject("No active connection.");
-            }
-            // ToDo: Implement CAN open logic based on mode
-            let _mode = mode || "O";
-            let baudRateCmd = this.canBaudRate ? canBaudRateCmdMap[this.canBaudRate] : "S4";
-            if(this.canMode || this.canMode != "C") {
-                this.canClose();
-            };
-            this.connection.write(`${baudRateCmd}\r`);
-            this.canMode = _mode;
-            this.emit("canWorked", 'CAN_BUS started successfully');
-            resolve();
-        });
+    async canOpen(mode: tCanMode): Promise<void> {
+        if (!this.connection) {
+            throw new Error("No active connection.");
+        }
+        let _mode = mode || "O";
+        let baudRateCmd = this.canBaudRate ? canBaudRateCmdMap[this.canBaudRate] : "S4";
+
+        if(this.canMode !== null) {
+            await this.canClose();
+        };
+
+        if (!this.connection) {
+            throw new Error("Connection lost while waiting for queue.");
+        }
+
+        this.connection.write(`${baudRateCmd}\r${_mode}\r`);
+        this.canMode = _mode;
+        this.emit("canWorked", 'CAN_BUS started successfully');
     };
 
-    async canClose() {
-        return new Promise<void>((resolve, reject) => {
-            if (!this.connection) {
-                reject("No active connection.");
-            }
-            while(this.queue.length > 0) {
-                            }
-            this.connection.write("C\r");
-            this.canMode = null;
-            this.emit("canStopped", 'CAN_BUS stopped successfully');
-            resolve();
-        });
+    async canClose(): Promise<void> {
+        if (!this.connection) {
+            throw new Error("No active connection.");
+        }
+
+        await this.waitForQueue();
+
+        if (!this.connection) {
+            throw new Error("Connection lost while waiting for queue.");
+        }
+
+        this.connection.write("C\r");
+        this.canMode = null;
+        this.emit("canStopped", "CAN_BUS stopped successfully");
     };
 
     onData(data: string) {
         // залишено з попередньої версії
 
         try{
-            data.replace(/\r|\n/g, '');
+            data =data.replace(/\r|\n/g, '');
         }catch (e){
             this.emit('error', e)
         }
