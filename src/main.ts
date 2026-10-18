@@ -2,7 +2,7 @@
 
 /** @file  */
 const {SerialPort} = require("serialport");
-const EventEmitter = require("events");
+const {EventEmitter} = require("events");
 const {ReadlineParser} = require("@serialport/parser-readline");
 const keyPortId = "CAN_USB_ConverterBasic";
 
@@ -118,7 +118,7 @@ module.exports = class UCCB extends EventEmitter {
         console.log(`Hardware: ${this.hardWare}`);
         console.log(`Serial Number: ${this.serialNumber}`);
     };
-    
+
     async openPort(portName: string | null, options = {}) {
         return new Promise<void>((resolve, reject) => {
             if (!portName) {
